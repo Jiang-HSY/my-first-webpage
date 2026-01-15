@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
-    <title>云便签 - 终极版</title>
+    <title>云便签 - 终极优化版</title>
     <link
       href="https://fonts.loli.net/css2?family=VT323&family=Space+Mono:wght@400;700&display=swap"
       rel="stylesheet"
@@ -57,7 +57,6 @@
         justify-content: flex-end;
       }
 
-      /* Pager UI */
       .pager-container {
         pointer-events: auto;
         margin-bottom: 20px;
@@ -143,7 +142,6 @@
         pointer-events: auto;
       }
 
-      /* 便签样式 */
       .receipt {
         position: absolute;
         width: var(--note-width);
@@ -316,7 +314,6 @@
         { bg: "#ffe0b2", p: "#ffe0b2" },
       ];
 
-      // --- 音效引擎 ---
       let audioCtx;
       function initAudio() {
         if (!audioCtx)
@@ -341,8 +338,18 @@
         viewport = document.getElementById("viewport");
         sb = window.supabase.createClient(SB_URL, SB_KEY);
 
+        // 打字音效绑定
+        const lcd = document.getElementById("inputText");
+        lcd.addEventListener("input", () => {
+          playSfx(1000 + Math.random() * 200, "sine", 0.015, 0.05);
+        });
+
         const { data } = await sb.from("notes").select("*");
-        if (data) data.forEach((item) => renderReceipt(item.id, item, true));
+        if (data && data.length > 0) {
+          data.forEach((item) => renderReceipt(item.id, item, true));
+          // 加载完成后自动全量居中显示
+          setTimeout(focusAllReceipts, 300);
+        }
 
         sb.channel("db-changes")
           .on(
@@ -448,7 +455,6 @@
         if (isInit) {
           contentEl.innerText = data.content;
         } else {
-          // 滑出动画逻辑
           setTimeout(() => {
             receipt.style.transition =
               "top 0.8s cubic-bezier(0.22, 1, 0.36, 1)";
@@ -553,7 +559,6 @@
           minute: "2-digit",
         });
 
-        // 初始位置在 Pager 处，目标位置在画面中心上方
         const x = (window.innerWidth / 2 - offsetX) / scale - 160;
         const startY = (window.innerHeight - 180 - offsetY) / scale;
         const targetY = (window.innerHeight / 2 - 100 - offsetY) / scale;
@@ -686,7 +691,7 @@
         });
         scale = Math.min(
           window.innerWidth / (maxX - minX + 100),
-          window.innerHeight / (maxY - minY + 200),
+          (window.innerHeight - 300) / (maxY - minY + 100),
           1
         );
         offsetX = window.innerWidth / 2 - ((minX + maxX) / 2) * scale;
@@ -711,7 +716,7 @@
       window.onload = () => {
         const code = prompt("请输入暗号：");
         if (code === "123456") {
-          initAudio(); // 初始化音频上下文
+          initAudio();
           initApp();
         } else {
           alert("暗号错误");
