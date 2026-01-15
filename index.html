@@ -6,18 +6,19 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
-    <title>云便签 - 终极完美版</title>
+    <title>云便签 - 工业级磁吸版</title>
     <link
       href="https://fonts.loli.net/css2?family=VT323&family=Space+Mono:wght@400;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="icon" href="data:;base64,iVBORw0KGgo=" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
       :root {
         --pager-green: #a3d95b;
         --accent-red: #ff6b6b;
         --ui-bg: #2a2a2a;
+        --grid-size: 20px;
+        --note-width: 320px;
       }
       body,
       html {
@@ -26,12 +27,9 @@
         width: 100vw;
         height: 100vh;
         background-color: #f0f2f5;
-        background-image: linear-gradient(
-            rgba(200, 210, 220, 0.4) 1px,
-            transparent 1px
-          ),
-          linear-gradient(90deg, rgba(200, 210, 220, 0.4) 1px, transparent 1px);
-        background-size: 35px 35px;
+        /* 视觉网格与逻辑网格完全同步 */
+        background-image: radial-gradient(#d1d5db 1.5px, transparent 1.5px);
+        background-size: var(--grid-size) var(--grid-size);
         overflow: hidden;
         font-family: "Space Mono", monospace;
         user-select: none;
@@ -60,6 +58,7 @@
         align-items: center;
         justify-content: flex-end;
       }
+
       .pager-container {
         pointer-events: auto;
         margin-bottom: 20px;
@@ -73,26 +72,45 @@
         box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: 10px;
         border-bottom: 8px solid #8cc63f;
       }
       .screen-bezel {
         background: #1a1a1a;
-        padding: 10px;
+        padding: 8px;
         border-radius: 12px;
       }
       textarea.lcd-screen {
         width: 100%;
-        height: 75px;
+        height: 60px;
         background: #242e22;
         border: none;
         color: var(--paper-preview, #7dff7d);
         font-family: "VT323", monospace;
-        font-size: 24px;
+        font-size: 22px;
         resize: none;
         outline: none;
         box-sizing: border-box;
         padding: 8px;
+      }
+
+      .search-bar {
+        width: 100%;
+        background: #1a1a1a;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        padding: 4px 8px;
+        box-sizing: border-box;
+      }
+      .search-bar input {
+        background: transparent;
+        border: none;
+        color: #7dff7d;
+        font-family: "VT323", monospace;
+        width: 100%;
+        outline: none;
+        font-size: 16px;
       }
 
       .controls {
@@ -101,8 +119,8 @@
         align-items: center;
       }
       .tool-btn {
-        width: 42px;
-        height: 42px;
+        width: 40px;
+        height: 40px;
         background: var(--ui-bg);
         border-radius: 50%;
         display: flex;
@@ -116,22 +134,25 @@
         background: var(--accent-red);
         color: #fff;
         border: none;
-        padding: 0 25px;
-        height: 45px;
+        padding: 0 20px;
+        height: 40px;
         border-radius: 12px;
         font-weight: bold;
         cursor: pointer;
         pointer-events: auto;
       }
 
+      /* 便签宽度改为 320px，正好是 16 个网格点 */
       .receipt {
         position: absolute;
-        width: 230px;
+        width: var(--note-width);
         background: var(--this-paper-color);
         padding: 12px 18px;
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
         z-index: 50;
-        transition: top 0.8s cubic-bezier(0.2, 0.8, 0.2, 1.05);
+        transition: transform 0.2s;
+        pointer-events: auto;
+        box-sizing: border-box;
         clip-path: polygon(
           0% 4px,
           2.5% 0,
@@ -177,8 +198,16 @@
           100% calc(100% - 4px),
           0% calc(100% - 4px)
         );
-        pointer-events: auto;
       }
+      .receipt.dragging {
+        scale: 1.02;
+        box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+        z-index: 1000 !important;
+      }
+      .receipt.hidden-note {
+        display: none;
+      }
+
       .receipt-header {
         display: flex;
         justify-content: space-between;
@@ -190,7 +219,7 @@
       }
       .close-btn {
         cursor: pointer;
-        font-size: 20px;
+        font-size: 18px;
         pointer-events: auto;
       }
       .receipt-content {
@@ -201,7 +230,6 @@
         margin: 10px 0;
         min-height: 30px;
         outline: none;
-        cursor: text;
       }
 
       .zoom-controls {
@@ -234,17 +262,26 @@
     <div class="fixed-ui">
       <div class="pager-container">
         <div class="pager-body">
+          <div class="search-bar">
+            <span style="color: #7dff7d; margin-right: 5px">🔍</span>
+            <input
+              type="text"
+              id="searchInp"
+              placeholder="SEARCH NOTES..."
+              oninput="handleSearch(this.value)"
+            />
+          </div>
           <div class="screen-bezel">
             <textarea
               id="inputText"
               class="lcd-screen"
-              placeholder="TYPE..."
+              placeholder="TYPE MESSAGE..."
             ></textarea>
           </div>
           <div class="controls">
             <div style="display: flex; gap: 10px">
               <div class="tool-btn" onclick="toggleColor()">🎨</div>
-              <div class="tool-btn" onclick="clearText()">🗑️</div>
+              <div class="tool-btn" onclick="clearAllInputs()">🗑️</div>
             </div>
             <button class="print-btn" onclick="printReceipt()">PRINT</button>
           </div>
@@ -298,6 +335,34 @@
         sb = window.supabase.createClient(SB_URL, SB_KEY);
         const { data } = await sb.from("notes").select("*");
         if (data) data.forEach((item) => renderReceipt(item.id, item, true));
+
+        sb.channel("any")
+          .on(
+            "postgres_changes",
+            { event: "*", schema: "public", table: "notes" },
+            (payload) => {
+              if (payload.eventType === "INSERT") {
+                if (!document.querySelector(`[data-db-id="${payload.new.id}"]`))
+                  renderReceipt(payload.new.id, payload.new, true);
+              } else if (payload.eventType === "UPDATE") {
+                const el = document.querySelector(
+                  `[data-db-id="${payload.new.id}"]`
+                );
+                if (el && el.dataset.saving !== "true") {
+                  el.querySelector(".receipt-content").innerText =
+                    payload.new.content;
+                  el.style.left = payload.new.left_pos;
+                  el.style.top = payload.new.top_pos;
+                }
+              } else if (payload.eventType === "DELETE") {
+                document
+                  .querySelector(`[data-db-id="${payload.old.id}"]`)
+                  ?.remove();
+              }
+            }
+          )
+          .subscribe();
+
         initCanvasPan();
       }
 
@@ -320,7 +385,7 @@
             await sb.from("notes").update(payload).eq("id", el.dataset.dbId);
           else {
             const { data } = await sb.from("notes").insert([payload]).select();
-            if (data && data[0]) el.dataset.dbId = data[0].id;
+            if (data) el.dataset.dbId = data[0].id;
           }
         } finally {
           el.dataset.saving = "false";
@@ -328,6 +393,7 @@
       }
 
       function renderReceipt(dbId, data, isInit = false) {
+        if (document.querySelector(`[data-db-id="${dbId}"]`)) return;
         const receipt = document.createElement("div");
         receipt.className = "receipt";
         receipt.dataset.dbId = dbId;
@@ -348,23 +414,15 @@
 
         viewport.appendChild(receipt);
         const contentEl = receipt.querySelector(".receipt-content");
-
-        if (isInit) {
-          receipt.style.transition = "none";
-          contentEl.innerText = data.content;
-        } else {
+        if (isInit) contentEl.innerText = data.content;
+        else
           typeWriter(contentEl, data.content, () => {
-            receipt.style.transition = "none";
             saveToCloud(receipt);
           });
-        }
 
-        // --- 核心优化：区分双击与拖拽 ---
         receipt.addEventListener("dblclick", (e) => {
-          if (e.target === contentEl) return;
-          focusSingleReceipt(receipt);
+          if (e.target !== contentEl) focusSingleReceipt(receipt);
         });
-
         contentEl.addEventListener("blur", () => saveToCloud(receipt));
         contentEl.addEventListener("input", () =>
           playSfx(1200, "sine", 0.005, 0.02)
@@ -374,8 +432,113 @@
         zIndexCounter = Math.max(zIndexCounter, parseInt(data.z_index) || 100);
       }
 
+      // --- 核心磁吸逻辑增强 ---
+      function makeDraggable(el) {
+        let isD = false,
+          sx,
+          sy,
+          ix,
+          iy;
+        const start = (e) => {
+          if (
+            e.target.classList.contains("close-btn") ||
+            e.target.contentEditable === "true"
+          )
+            return;
+          e.stopPropagation();
+          isD = true;
+          el.classList.add("dragging");
+          el.style.zIndex = ++zIndexCounter;
+          const t = e.type.includes("touch") ? e.touches[0] : e;
+          sx = t.clientX;
+          sy = t.clientY;
+          ix = parseFloat(el.style.left);
+          iy = parseFloat(el.style.top);
+        };
+        const move = (e) => {
+          if (!isD) return;
+          const t = e.type.includes("touch") ? e.touches[0] : e;
+          el.style.left = ix + (t.clientX - sx) / scale + "px";
+          el.style.top = iy + (t.clientY - sy) / scale + "px";
+        };
+        const end = () => {
+          if (isD) {
+            isD = false;
+            el.classList.remove("dragging");
+
+            let targetX = parseFloat(el.style.left);
+            let targetY = parseFloat(el.style.top);
+            const grid = 20;
+            const snapRange = 50; // 便签间吸附感应范围
+
+            // 1. 寻找周围其他便签进行边缘吸附
+            const otherNotes = document.querySelectorAll(
+              `.receipt:not([data-db-id="${el.dataset.dbId}"])`
+            );
+            otherNotes.forEach((other) => {
+              const ox = parseFloat(other.style.left);
+              const oy = parseFloat(other.style.top);
+              const ow = other.offsetWidth;
+              const oh = other.offsetHeight;
+
+              // 左右侧吸附
+              if (Math.abs(targetY - oy) < snapRange) {
+                if (Math.abs(targetX - (ox + ow)) < snapRange)
+                  targetX = ox + ow; // 吸附到对方右侧
+                if (Math.abs(targetX + 320 - ox) < snapRange)
+                  targetX = ox - 320; // 吸附到对方左侧
+                targetY = oy; // 高度对齐
+              }
+              // 上下侧吸附
+              if (Math.abs(targetX - ox) < snapRange) {
+                if (Math.abs(targetY - (oy + oh)) < snapRange)
+                  targetY = oy + oh; // 吸附到对方底部
+                if (Math.abs(targetY + el.offsetHeight - oy) < snapRange)
+                  targetY = oy - el.offsetHeight; // 吸附到对方顶部
+                targetX = ox; // X轴对齐
+              }
+            });
+
+            // 2. 最终强制对齐到物理网格
+            el.style.left = Math.round(targetX / grid) * grid + "px";
+            el.style.top = Math.round(targetY / grid) * grid + "px";
+
+            saveToCloud(el);
+            playSfx(400, "sine", 0.01, 0.05);
+          }
+        };
+        el.addEventListener("mousedown", start);
+        el.addEventListener("touchstart", start, { passive: false });
+        window.addEventListener("mousemove", move);
+        window.addEventListener("touchmove", move, { passive: false });
+        window.addEventListener("mouseup", end);
+        window.addEventListener("touchend", end);
+      }
+
+      function handleSearch(val) {
+        const query = val.toLowerCase().trim();
+        document.querySelectorAll(".receipt").forEach((note) => {
+          const text = note
+            .querySelector(".receipt-content")
+            .innerText.toLowerCase();
+          note.classList.toggle(
+            "hidden-note",
+            query !== "" && !text.includes(query)
+          );
+        });
+      }
+
+      function clearAllInputs() {
+        document.getElementById("inputText").value = "";
+        const searchInp = document.getElementById("searchInp");
+        searchInp.value = "";
+        handleSearch(""); // 恢复所有便签显示
+        playSfx(200);
+      }
+
+      // (其他原有基础函数保持不变...)
       function focusSingleReceipt(el) {
-        const x = parseFloat(el.style.left) + 115;
+        const x = parseFloat(el.style.left) + 160;
         const y = parseFloat(el.style.top) + el.offsetHeight / 2;
         scale = 1;
         offsetX = window.innerWidth / 2 - x * scale;
@@ -383,9 +546,7 @@
         viewport.style.transition = "all 0.5s cubic-bezier(0.25, 1, 0.5, 1)";
         applyTransform();
         setTimeout(() => (viewport.style.transition = "none"), 500);
-        playSfx(1500, "sine", 0.03, 0.2);
       }
-
       function typeWriter(el, text, cb) {
         let i = 0;
         const cur = document.createElement("span");
@@ -405,7 +566,6 @@
         }
         type();
       }
-
       function printReceipt() {
         const input = document.getElementById("inputText");
         const text = input.value.trim();
@@ -416,7 +576,7 @@
           hour: "2-digit",
           minute: "2-digit",
         });
-        const x = (window.innerWidth / 2 - offsetX) / scale - 115;
+        const x = (window.innerWidth / 2 - offsetX) / scale - 160;
         const y = (window.innerHeight - 250 - offsetY) / scale;
         renderReceipt(null, {
           note_id: id,
@@ -427,14 +587,8 @@
           z_index: ++zIndexCounter,
           date_str: date,
         });
-        const all = document.querySelectorAll(".receipt");
-        const newEl = all[all.length - 1];
-        setTimeout(() => {
-          newEl.style.top = y - 280 + "px";
-        }, 50);
         input.value = "";
       }
-
       function initCanvasPan() {
         let isP = false,
           sx,
@@ -460,48 +614,6 @@
         window.addEventListener("touchmove", move, { passive: false });
         window.addEventListener("touchend", () => (isP = false));
       }
-
-      function makeDraggable(el) {
-        let isD = false,
-          sx,
-          sy,
-          ix,
-          iy;
-        const start = (e) => {
-          if (
-            e.target.classList.contains("close-btn") ||
-            e.target.contentEditable === "true"
-          )
-            return;
-          e.stopPropagation();
-          isD = true;
-          el.style.zIndex = ++zIndexCounter;
-          const t = e.type.includes("touch") ? e.touches[0] : e;
-          sx = t.clientX;
-          sy = t.clientY;
-          ix = parseFloat(el.style.left);
-          iy = parseFloat(el.style.top);
-        };
-        const move = (e) => {
-          if (!isD) return;
-          const t = e.type.includes("touch") ? e.touches[0] : e;
-          el.style.left = ix + (t.clientX - sx) / scale + "px";
-          el.style.top = iy + (t.clientY - sy) / scale + "px";
-        };
-        const end = () => {
-          if (isD) {
-            isD = false;
-            saveToCloud(el);
-          }
-        };
-        el.addEventListener("mousedown", start);
-        el.addEventListener("touchstart", start, { passive: false });
-        window.addEventListener("mousemove", move);
-        window.addEventListener("touchmove", move, { passive: false });
-        window.addEventListener("mouseup", end);
-        window.addEventListener("touchend", end);
-      }
-
       async function removeReceipt(btn) {
         const el = btn.closest(".receipt");
         const dbId = el.dataset.dbId;
@@ -510,7 +622,6 @@
         if (dbId && dbId !== "null")
           await sb.from("notes").delete().eq("id", dbId);
       }
-
       function applyTransform() {
         viewport.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
       }
@@ -524,9 +635,8 @@
         offsetY = 0;
         applyTransform();
       }
-
       function focusAllReceipts() {
-        const items = document.querySelectorAll(".receipt");
+        const items = document.querySelectorAll(".receipt:not(.hidden-note)");
         if (!items.length) return resetCanvas();
         let minX = Infinity,
           maxX = -Infinity,
@@ -536,7 +646,7 @@
           const x = parseFloat(el.style.left),
             y = parseFloat(el.style.top);
           minX = Math.min(minX, x);
-          maxX = Math.max(maxX, x + 230);
+          maxX = Math.max(maxX, x + 320);
           minY = Math.min(minY, y);
           maxY = Math.max(maxY, y + el.offsetHeight);
         });
@@ -551,7 +661,6 @@
         applyTransform();
         setTimeout(() => (viewport.style.transition = "none"), 600);
       }
-
       function toggleColor() {
         currentColorIndex = (currentColorIndex + 1) % paperColors.length;
         document
@@ -561,10 +670,6 @@
             paperColors[currentColorIndex].p
           );
         playSfx(600);
-      }
-      function clearText() {
-        document.getElementById("inputText").value = "";
-        playSfx(200);
       }
 
       window.onload = () => {
