@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
-    <title>云便签 - 移动端交互优化版</title>
+    <title>云便签 - 终极完美版</title>
     <link
       href="https://fonts.loli.net/css2?family=VT323&family=Space+Mono:wght@400;700&display=swap"
       rel="stylesheet"
@@ -37,6 +37,7 @@
         user-select: none;
         touch-action: none;
       }
+
       #viewport {
         position: absolute;
         top: 0;
@@ -93,6 +94,7 @@
         box-sizing: border-box;
         padding: 8px;
       }
+
       .controls {
         display: flex;
         justify-content: space-between;
@@ -122,7 +124,6 @@
         pointer-events: auto;
       }
 
-      /* 纸条样式 - 优化点击热区 */
       .receipt {
         position: absolute;
         width: 230px;
@@ -177,7 +178,6 @@
           0% calc(100% - 4px)
         );
         pointer-events: auto;
-        cursor: zoom-in;
       }
       .receipt-header {
         display: flex;
@@ -199,7 +199,7 @@
         font-size: 14px;
         white-space: pre-wrap;
         margin: 10px 0;
-        min-height: 40px;
+        min-height: 30px;
         outline: none;
         cursor: text;
       }
@@ -225,6 +225,7 @@
         cursor: pointer;
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
         border: 1px solid #eee;
+        font-weight: bold;
       }
     </style>
   </head>
@@ -319,7 +320,7 @@
             await sb.from("notes").update(payload).eq("id", el.dataset.dbId);
           else {
             const { data } = await sb.from("notes").insert([payload]).select();
-            if (data) el.dataset.dbId = data[0].id;
+            if (data && data[0]) el.dataset.dbId = data[0].id;
           }
         } finally {
           el.dataset.saving = "false";
@@ -358,30 +359,11 @@
           });
         }
 
-        // --- 逻辑优化：区分点击区域 ---
-        receipt.addEventListener("mousedown", (e) => {
-          // 如果点击的是内容区域，不触发居中，让用户编辑
+        // --- 核心优化：区分双击与拖拽 ---
+        receipt.addEventListener("dblclick", (e) => {
           if (e.target === contentEl) return;
-          // 如果点击的是关闭按钮，不触发居中
-          if (e.target.classList.contains("close-btn")) return;
-
-          // 否则，点击纸条其他地方，触发居中
           focusSingleReceipt(receipt);
         });
-
-        // 移动端兼容
-        receipt.addEventListener(
-          "touchstart",
-          (e) => {
-            if (
-              e.target === contentEl ||
-              e.target.classList.contains("close-btn")
-            )
-              return;
-            focusSingleReceipt(receipt);
-          },
-          { passive: true }
-        );
 
         contentEl.addEventListener("blur", () => saveToCloud(receipt));
         contentEl.addEventListener("input", () =>
