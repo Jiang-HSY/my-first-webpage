@@ -6,13 +6,14 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
-    <title>云便签 - 工业级磁吸版</title>
+    <title>云便签 - 故障修复版</title>
     <link
       href="https://fonts.loli.net/css2?family=VT323&family=Space+Mono:wght@400;700&display=swap"
       rel="stylesheet"
     />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
+      /* 保持之前的所有 CSS 不变 */
       :root {
         --pager-green: #a3d95b;
         --accent-red: #ff6b6b;
@@ -27,7 +28,6 @@
         width: 100vw;
         height: 100vh;
         background-color: #f0f2f5;
-        /* 视觉网格与逻辑网格完全同步 */
         background-image: radial-gradient(#d1d5db 1.5px, transparent 1.5px);
         background-size: var(--grid-size) var(--grid-size);
         overflow: hidden;
@@ -35,7 +35,6 @@
         user-select: none;
         touch-action: none;
       }
-
       #viewport {
         position: absolute;
         top: 0;
@@ -58,7 +57,6 @@
         align-items: center;
         justify-content: flex-end;
       }
-
       .pager-container {
         pointer-events: auto;
         margin-bottom: 20px;
@@ -93,7 +91,6 @@
         box-sizing: border-box;
         padding: 8px;
       }
-
       .search-bar {
         width: 100%;
         background: #1a1a1a;
@@ -102,6 +99,7 @@
         align-items: center;
         padding: 4px 8px;
         box-sizing: border-box;
+        margin-bottom: 5px;
       }
       .search-bar input {
         background: transparent;
@@ -112,7 +110,6 @@
         outline: none;
         font-size: 16px;
       }
-
       .controls {
         display: flex;
         justify-content: space-between;
@@ -141,8 +138,6 @@
         cursor: pointer;
         pointer-events: auto;
       }
-
-      /* 便签宽度改为 320px，正好是 16 个网格点 */
       .receipt {
         position: absolute;
         width: var(--note-width);
@@ -207,7 +202,6 @@
       .receipt.hidden-note {
         display: none;
       }
-
       .receipt-header {
         display: flex;
         justify-content: space-between;
@@ -231,7 +225,6 @@
         min-height: 30px;
         outline: none;
       }
-
       .zoom-controls {
         position: fixed;
         right: 20px;
@@ -315,6 +308,7 @@
         { bg: "#ffe0b2", p: "#ffe0b2" },
       ];
 
+      // 音效
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       function playSfx(f, t = "sine", v = 0.02, d = 0.05) {
         if (audioCtx.state === "suspended") audioCtx.resume();
@@ -333,10 +327,13 @@
       async function initApp() {
         viewport = document.getElementById("viewport");
         sb = window.supabase.createClient(SB_URL, SB_KEY);
+
+        // 首次加载
         const { data } = await sb.from("notes").select("*");
         if (data) data.forEach((item) => renderReceipt(item.id, item, true));
 
-        sb.channel("any")
+        // 重要：Realtime 监听
+        sb.channel("public-notes")
           .on(
             "postgres_changes",
             { event: "*", schema: "public", table: "notes" },
@@ -349,10 +346,12 @@
                   `[data-db-id="${payload.new.id}"]`
                 );
                 if (el && el.dataset.saving !== "true") {
-                  el.querySelector(".receipt-content").innerText =
-                    payload.new.content;
+                  el.style.transition = "all 0.5s ease";
                   el.style.left = payload.new.left_pos;
                   el.style.top = payload.new.top_pos;
+                  el.querySelector(".receipt-content").innerText =
+                    payload.new.content;
+                  setTimeout(() => (el.style.transition = "none"), 500);
                 }
               } else if (payload.eventType === "DELETE") {
                 document
@@ -366,10 +365,13 @@
         initCanvasPan();
       }
 
+      // 修复后的保存逻辑：确保拿到 ID 后再操作
       async function saveToCloud(el) {
+        const dbId = el.dataset.dbId;
         if (!sb || el.dataset.saving === "true") return;
         const content = el.querySelector(".receipt-content").innerText.trim();
         if (!content) return;
+
         el.dataset.saving = "true";
         const payload = {
           note_id: el.querySelector(".receipt-header span").innerText,
@@ -380,12 +382,23 @@
           z_index: parseInt(el.style.zIndex) || 100,
           date_str: el.querySelector(".footer-date").innerText,
         };
+
         try {
-          if (el.dataset.dbId && el.dataset.dbId !== "null")
-            await sb.from("notes").update(payload).eq("id", el.dataset.dbId);
-          else {
-            const { data } = await sb.from("notes").insert([payload]).select();
-            if (data) el.dataset.dbId = data[0].id;
+          // 如果 ID 为空或者 "null"，尝试插入
+          if (!dbId || dbId === "null" || dbId === "undefined") {
+            const { data, error } = await sb
+              .from("notes")
+              .insert([payload])
+              .select();
+            if (data && data[0]) el.dataset.dbId = data[0].id; // 成功拿到云端 ID
+            if (error) console.error("Insert Error:", error);
+          } else {
+            // 有 ID 则更新
+            const { error } = await sb
+              .from("notes")
+              .update(payload)
+              .eq("id", dbId);
+            if (error) console.error("Update Error:", error);
           }
         } finally {
           el.dataset.saving = "false";
@@ -393,7 +406,7 @@
       }
 
       function renderReceipt(dbId, data, isInit = false) {
-        if (document.querySelector(`[data-db-id="${dbId}"]`)) return;
+        if (dbId && document.querySelector(`[data-db-id="${dbId}"]`)) return;
         const receipt = document.createElement("div");
         receipt.className = "receipt";
         receipt.dataset.dbId = dbId;
@@ -427,12 +440,11 @@
         contentEl.addEventListener("input", () =>
           playSfx(1200, "sine", 0.005, 0.02)
         );
-
         makeDraggable(receipt);
         zIndexCounter = Math.max(zIndexCounter, parseInt(data.z_index) || 100);
       }
 
-      // --- 核心磁吸逻辑增强 ---
+      // 磁吸拖拽逻辑
       function makeDraggable(el) {
         let isD = false,
           sx,
@@ -465,46 +477,33 @@
           if (isD) {
             isD = false;
             el.classList.remove("dragging");
-
-            let targetX = parseFloat(el.style.left);
-            let targetY = parseFloat(el.style.top);
-            const grid = 20;
-            const snapRange = 50; // 便签间吸附感应范围
-
-            // 1. 寻找周围其他便签进行边缘吸附
-            const otherNotes = document.querySelectorAll(
+            let tx = parseFloat(el.style.left),
+              ty = parseFloat(el.style.top);
+            const grid = 20,
+              snap = 50;
+            const others = document.querySelectorAll(
               `.receipt:not([data-db-id="${el.dataset.dbId}"])`
             );
-            otherNotes.forEach((other) => {
-              const ox = parseFloat(other.style.left);
-              const oy = parseFloat(other.style.top);
-              const ow = other.offsetWidth;
-              const oh = other.offsetHeight;
-
-              // 左右侧吸附
-              if (Math.abs(targetY - oy) < snapRange) {
-                if (Math.abs(targetX - (ox + ow)) < snapRange)
-                  targetX = ox + ow; // 吸附到对方右侧
-                if (Math.abs(targetX + 320 - ox) < snapRange)
-                  targetX = ox - 320; // 吸附到对方左侧
-                targetY = oy; // 高度对齐
+            others.forEach((o) => {
+              const ox = parseFloat(o.style.left),
+                oy = parseFloat(o.style.top);
+              const ow = o.offsetWidth,
+                oh = o.offsetHeight;
+              if (Math.abs(ty - oy) < snap) {
+                if (Math.abs(tx - (ox + ow)) < snap) tx = ox + ow;
+                if (Math.abs(tx + 320 - ox) < snap) tx = ox - 320;
+                ty = oy;
               }
-              // 上下侧吸附
-              if (Math.abs(targetX - ox) < snapRange) {
-                if (Math.abs(targetY - (oy + oh)) < snapRange)
-                  targetY = oy + oh; // 吸附到对方底部
-                if (Math.abs(targetY + el.offsetHeight - oy) < snapRange)
-                  targetY = oy - el.offsetHeight; // 吸附到对方顶部
-                targetX = ox; // X轴对齐
+              if (Math.abs(tx - ox) < snap) {
+                if (Math.abs(ty - (oy + oh)) < snap) ty = oy + oh;
+                if (Math.abs(ty + el.offsetHeight - oy) < snap)
+                  ty = oy - el.offsetHeight;
+                tx = ox;
               }
             });
-
-            // 2. 最终强制对齐到物理网格
-            el.style.left = Math.round(targetX / grid) * grid + "px";
-            el.style.top = Math.round(targetY / grid) * grid + "px";
-
+            el.style.left = Math.round(tx / grid) * grid + "px";
+            el.style.top = Math.round(ty / grid) * grid + "px";
             saveToCloud(el);
-            playSfx(400, "sine", 0.01, 0.05);
           }
         };
         el.addEventListener("mousedown", start);
@@ -516,34 +515,29 @@
       }
 
       function handleSearch(val) {
-        const query = val.toLowerCase().trim();
-        document.querySelectorAll(".receipt").forEach((note) => {
-          const text = note
-            .querySelector(".receipt-content")
-            .innerText.toLowerCase();
-          note.classList.toggle(
-            "hidden-note",
-            query !== "" && !text.includes(query)
-          );
+        const q = val.toLowerCase().trim();
+        document.querySelectorAll(".receipt").forEach((n) => {
+          const t = n.querySelector(".receipt-content").innerText.toLowerCase();
+          n.classList.toggle("hidden-note", q !== "" && !t.includes(q));
         });
       }
 
       function clearAllInputs() {
         document.getElementById("inputText").value = "";
-        const searchInp = document.getElementById("searchInp");
-        searchInp.value = "";
-        handleSearch(""); // 恢复所有便签显示
+        const s = document.getElementById("searchInp");
+        s.value = "";
+        handleSearch("");
         playSfx(200);
       }
 
-      // (其他原有基础函数保持不变...)
+      // 画布缩放对焦基础函数
       function focusSingleReceipt(el) {
         const x = parseFloat(el.style.left) + 160;
         const y = parseFloat(el.style.top) + el.offsetHeight / 2;
         scale = 1;
         offsetX = window.innerWidth / 2 - x * scale;
         offsetY = window.innerHeight / 2 - y * scale;
-        viewport.style.transition = "all 0.5s cubic-bezier(0.25, 1, 0.5, 1)";
+        viewport.style.transition = "all 0.5s ease";
         applyTransform();
         setTimeout(() => (viewport.style.transition = "none"), 500);
       }
