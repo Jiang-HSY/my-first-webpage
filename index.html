@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
-    <title>云便签 - 终极加固版</title>
+    <title>云便签 - 终极版</title>
     <link
       href="https://fonts.loli.net/css2?family=VT323&family=Space+Mono:wght@400;700&display=swap"
       rel="stylesheet"
@@ -56,11 +56,14 @@
         align-items: center;
         justify-content: flex-end;
       }
+
+      /* Pager UI */
       .pager-container {
         pointer-events: auto;
         margin-bottom: 20px;
         width: 90%;
         max-width: 420px;
+        z-index: 2500;
       }
       .pager-body {
         background-color: var(--pager-green);
@@ -90,6 +93,7 @@
         box-sizing: border-box;
         padding: 8px;
       }
+
       .search-bar {
         width: 100%;
         background: #1a1a1a;
@@ -109,6 +113,7 @@
         outline: none;
         font-size: 16px;
       }
+
       .controls {
         display: flex;
         justify-content: space-between;
@@ -137,6 +142,8 @@
         cursor: pointer;
         pointer-events: auto;
       }
+
+      /* 便签样式 */
       .receipt {
         position: absolute;
         width: var(--note-width);
@@ -196,11 +203,12 @@
       .receipt.dragging {
         scale: 1.02;
         box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
-        z-index: 1000 !important;
+        z-index: 1500 !important;
       }
       .receipt.hidden-note {
         display: none;
       }
+
       .receipt-header {
         display: flex;
         justify-content: space-between;
@@ -224,6 +232,7 @@
         min-height: 30px;
         outline: none;
       }
+
       .zoom-controls {
         position: fixed;
         right: 20px;
@@ -307,8 +316,14 @@
         { bg: "#ffe0b2", p: "#ffe0b2" },
       ];
 
-      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      function playSfx(f, t = "sine", v = 0.02, d = 0.05) {
+      // --- 音效引擎 ---
+      let audioCtx;
+      function initAudio() {
+        if (!audioCtx)
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      function playSfx(f, t = "sine", v = 0.02, d = 0.1) {
+        initAudio();
         if (audioCtx.state === "suspended") audioCtx.resume();
         const o = audioCtx.createOscillator(),
           g = audioCtx.createGain();
@@ -329,25 +344,24 @@
         const { data } = await sb.from("notes").select("*");
         if (data) data.forEach((item) => renderReceipt(item.id, item, true));
 
-        sb.channel("public-notes")
+        sb.channel("db-changes")
           .on(
             "postgres_changes",
             { event: "*", schema: "public", table: "notes" },
             (payload) => {
               if (payload.eventType === "INSERT") {
-                // 加固：收到插入信号，如果本地通过 note_id 已经有了，就不再创建
                 if (
                   !document.querySelector(
                     `[data-note-id="${payload.new.note_id}"]`
                   )
                 ) {
                   renderReceipt(payload.new.id, payload.new, true);
+                  playSfx(1000, "sine", 0.03, 0.4);
                 } else {
-                  // 如果本地已经存在（是刚才自己发的），则把云端生成的真实 ID 补上去
-                  const localEl = document.querySelector(
+                  const local = document.querySelector(
                     `[data-note-id="${payload.new.note_id}"]`
                   );
-                  if (localEl) localEl.dataset.dbId = payload.new.id;
+                  if (local) local.dataset.dbId = payload.new.id;
                 }
               } else if (payload.eventType === "UPDATE") {
                 const el = document.querySelector(
@@ -365,6 +379,7 @@
                 document
                   .querySelector(`[data-db-id="${payload.old.id}"]`)
                   ?.remove();
+                playSfx(200, "sawtooth", 0.02, 0.2);
               }
             }
           )
@@ -377,10 +392,8 @@
         if (!sb || el.dataset.saving === "true") return;
         const content = el.querySelector(".receipt-content").innerText.trim();
         if (!content) return;
-
         el.dataset.saving = "true";
         const dbId = el.dataset.dbId;
-
         const payload = {
           note_id: el.dataset.noteId,
           content: content,
@@ -390,27 +403,19 @@
           z_index: parseInt(el.style.zIndex) || 100,
           date_str: el.querySelector(".footer-date").innerText,
         };
-
         try {
-          // 加固：只有在明确有 dbId 且不是 null 字符串时才进行更新
           if (!dbId || dbId === "null" || dbId === "undefined") {
-            const { data, error } = await sb
-              .from("notes")
-              .insert([payload])
-              .select();
-            if (data && data[0]) el.dataset.dbId = data[0].id;
+            const { data } = await sb.from("notes").insert([payload]).select();
+            if (data) el.dataset.dbId = data[0].id;
           } else {
             await sb.from("notes").update(payload).eq("id", dbId);
           }
-        } catch (e) {
-          console.error(e);
         } finally {
           el.dataset.saving = "false";
         }
       }
 
       function renderReceipt(dbId, data, isInit = false) {
-        // 加固：双重查重
         if (dbId && document.querySelector(`[data-db-id="${dbId}"]`)) return;
         if (
           data.note_id &&
@@ -422,7 +427,6 @@
         receipt.className = "receipt";
         receipt.dataset.dbId = dbId;
         receipt.dataset.noteId = data.note_id;
-
         receipt.style.setProperty(
           "--this-paper-color",
           data.color || "#ffffff"
@@ -440,11 +444,22 @@
 
         viewport.appendChild(receipt);
         const contentEl = receipt.querySelector(".receipt-content");
-        if (isInit) contentEl.innerText = data.content;
-        else
-          typeWriter(contentEl, data.content, () => {
-            saveToCloud(receipt);
-          });
+
+        if (isInit) {
+          contentEl.innerText = data.content;
+        } else {
+          // 滑出动画逻辑
+          setTimeout(() => {
+            receipt.style.transition =
+              "top 0.8s cubic-bezier(0.22, 1, 0.36, 1)";
+            receipt.style.top = data.target_y;
+            setTimeout(() => {
+              receipt.style.transition = "none";
+              saveToCloud(receipt);
+            }, 810);
+          }, 50);
+          typeWriter(contentEl, data.content);
+        }
 
         receipt.addEventListener("dblclick", (e) => {
           if (e.target !== contentEl) focusSingleReceipt(receipt);
@@ -454,7 +469,6 @@
           playSfx(1200, "sine", 0.005, 0.02)
         );
         makeDraggable(receipt);
-        zIndexCounter = Math.max(zIndexCounter, parseInt(data.z_index) || 100);
       }
 
       function makeDraggable(el) {
@@ -478,6 +492,7 @@
           sy = t.clientY;
           ix = parseFloat(el.style.left);
           iy = parseFloat(el.style.top);
+          playSfx(600, "sine", 0.01, 0.05);
         };
         const move = (e) => {
           if (!isD) return;
@@ -516,6 +531,7 @@
             el.style.left = Math.round(tx / grid) * grid + "px";
             el.style.top = Math.round(ty / grid) * grid + "px";
             saveToCloud(el);
+            playSfx(400, "sine", 0.01, 0.05);
           }
         };
         el.addEventListener("mousedown", start);
@@ -530,22 +546,25 @@
         const input = document.getElementById("inputText");
         const text = input.value.trim();
         if (!text) return;
-        playSfx(1000, "sine", 0.05, 0.4);
-        const note_id = `PGR-${Math.floor(Math.random() * 9000 + 1000)}`;
+        playSfx(800, "sawtooth", 0.03, 0.4);
+        const nid = `PGR-${Math.floor(Math.random() * 9000 + 1000)}`;
         const date = new Date().toLocaleString([], {
           hour: "2-digit",
           minute: "2-digit",
         });
-        const x = (window.innerWidth / 2 - offsetX) / scale - 160;
-        const y = (window.innerHeight - 250 - offsetY) / scale;
 
-        // 本地立即创建，通过 note_id 占位防重
+        // 初始位置在 Pager 处，目标位置在画面中心上方
+        const x = (window.innerWidth / 2 - offsetX) / scale - 160;
+        const startY = (window.innerHeight - 180 - offsetY) / scale;
+        const targetY = (window.innerHeight / 2 - 100 - offsetY) / scale;
+
         renderReceipt(null, {
-          note_id: note_id,
+          note_id: nid,
           content: text,
           color: paperColors[currentColorIndex].bg,
           left_pos: x + "px",
-          top_pos: y + "px",
+          top_pos: startY + "px",
+          target_y: targetY + "px",
           z_index: ++zIndexCounter,
           date_str: date,
         });
@@ -565,7 +584,7 @@
         const s = document.getElementById("searchInp");
         s.value = "";
         handleSearch("");
-        playSfx(200);
+        playSfx(200, "sawtooth", 0.03, 0.1);
       }
 
       function focusSingleReceipt(el) {
@@ -629,7 +648,7 @@
         const el = btn.closest(".receipt");
         const dbId = el.dataset.dbId;
         el.remove();
-        playSfx(300);
+        playSfx(150, "sawtooth", 0.03, 0.1);
         if (dbId && dbId !== "null")
           await sb.from("notes").delete().eq("id", dbId);
       }
@@ -640,13 +659,16 @@
       function changeZoom(d) {
         scale = Math.min(Math.max(0.1, scale + d), 3);
         applyTransform();
+        playSfx(1500, "sine", 0.005, 0.05);
       }
       function resetCanvas() {
         scale = 1;
         offsetX = 0;
         offsetY = 0;
         applyTransform();
+        playSfx(500, "sine", 0.01, 0.2);
       }
+
       function focusAllReceipts() {
         const items = document.querySelectorAll(".receipt:not(.hidden-note)");
         if (!items.length) return resetCanvas();
@@ -672,7 +694,9 @@
         viewport.style.transition = "all 0.6s ease";
         applyTransform();
         setTimeout(() => (viewport.style.transition = "none"), 600);
+        playSfx(700, "sine", 0.01, 0.3);
       }
+
       function toggleColor() {
         currentColorIndex = (currentColorIndex + 1) % paperColors.length;
         document
@@ -681,13 +705,17 @@
             "--paper-preview",
             paperColors[currentColorIndex].p
           );
-        playSfx(600);
+        playSfx(1000, "sine", 0.02, 0.1);
       }
 
       window.onload = () => {
         const code = prompt("请输入暗号：");
-        if (code === "123456") initApp();
-        else alert("暗号错误");
+        if (code === "123456") {
+          initAudio(); // 初始化音频上下文
+          initApp();
+        } else {
+          alert("暗号错误");
+        }
       };
     </script>
   </body>
