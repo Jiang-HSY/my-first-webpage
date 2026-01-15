@@ -6,14 +6,13 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
-    <title>云便签 - 故障修复版</title>
+    <title>云便签 - 终极加固版</title>
     <link
       href="https://fonts.loli.net/css2?family=VT323&family=Space+Mono:wght@400;700&display=swap"
       rel="stylesheet"
     />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-      /* 保持之前的所有 CSS 不变 */
       :root {
         --pager-green: #a3d95b;
         --accent-red: #ff6b6b;
@@ -308,7 +307,6 @@
         { bg: "#ffe0b2", p: "#ffe0b2" },
       ];
 
-      // 音效
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       function playSfx(f, t = "sine", v = 0.02, d = 0.05) {
         if (audioCtx.state === "suspended") audioCtx.resume();
@@ -328,19 +326,29 @@
         viewport = document.getElementById("viewport");
         sb = window.supabase.createClient(SB_URL, SB_KEY);
 
-        // 首次加载
         const { data } = await sb.from("notes").select("*");
         if (data) data.forEach((item) => renderReceipt(item.id, item, true));
 
-        // 重要：Realtime 监听
         sb.channel("public-notes")
           .on(
             "postgres_changes",
             { event: "*", schema: "public", table: "notes" },
             (payload) => {
               if (payload.eventType === "INSERT") {
-                if (!document.querySelector(`[data-db-id="${payload.new.id}"]`))
+                // 加固：收到插入信号，如果本地通过 note_id 已经有了，就不再创建
+                if (
+                  !document.querySelector(
+                    `[data-note-id="${payload.new.note_id}"]`
+                  )
+                ) {
                   renderReceipt(payload.new.id, payload.new, true);
+                } else {
+                  // 如果本地已经存在（是刚才自己发的），则把云端生成的真实 ID 补上去
+                  const localEl = document.querySelector(
+                    `[data-note-id="${payload.new.note_id}"]`
+                  );
+                  if (localEl) localEl.dataset.dbId = payload.new.id;
+                }
               } else if (payload.eventType === "UPDATE") {
                 const el = document.querySelector(
                   `[data-db-id="${payload.new.id}"]`
@@ -365,16 +373,16 @@
         initCanvasPan();
       }
 
-      // 修复后的保存逻辑：确保拿到 ID 后再操作
       async function saveToCloud(el) {
-        const dbId = el.dataset.dbId;
         if (!sb || el.dataset.saving === "true") return;
         const content = el.querySelector(".receipt-content").innerText.trim();
         if (!content) return;
 
         el.dataset.saving = "true";
+        const dbId = el.dataset.dbId;
+
         const payload = {
-          note_id: el.querySelector(".receipt-header span").innerText,
+          note_id: el.dataset.noteId,
           content: content,
           color: el.style.getPropertyValue("--this-paper-color"),
           left_pos: el.style.left,
@@ -384,32 +392,37 @@
         };
 
         try {
-          // 如果 ID 为空或者 "null"，尝试插入
+          // 加固：只有在明确有 dbId 且不是 null 字符串时才进行更新
           if (!dbId || dbId === "null" || dbId === "undefined") {
             const { data, error } = await sb
               .from("notes")
               .insert([payload])
               .select();
-            if (data && data[0]) el.dataset.dbId = data[0].id; // 成功拿到云端 ID
-            if (error) console.error("Insert Error:", error);
+            if (data && data[0]) el.dataset.dbId = data[0].id;
           } else {
-            // 有 ID 则更新
-            const { error } = await sb
-              .from("notes")
-              .update(payload)
-              .eq("id", dbId);
-            if (error) console.error("Update Error:", error);
+            await sb.from("notes").update(payload).eq("id", dbId);
           }
+        } catch (e) {
+          console.error(e);
         } finally {
           el.dataset.saving = "false";
         }
       }
 
       function renderReceipt(dbId, data, isInit = false) {
+        // 加固：双重查重
         if (dbId && document.querySelector(`[data-db-id="${dbId}"]`)) return;
+        if (
+          data.note_id &&
+          document.querySelector(`[data-note-id="${data.note_id}"]`)
+        )
+          return;
+
         const receipt = document.createElement("div");
         receipt.className = "receipt";
         receipt.dataset.dbId = dbId;
+        receipt.dataset.noteId = data.note_id;
+
         receipt.style.setProperty(
           "--this-paper-color",
           data.color || "#ffffff"
@@ -444,7 +457,6 @@
         zIndexCounter = Math.max(zIndexCounter, parseInt(data.z_index) || 100);
       }
 
-      // 磁吸拖拽逻辑
       function makeDraggable(el) {
         let isD = false,
           sx,
@@ -482,7 +494,7 @@
             const grid = 20,
               snap = 50;
             const others = document.querySelectorAll(
-              `.receipt:not([data-db-id="${el.dataset.dbId}"])`
+              `.receipt:not([data-note-id="${el.dataset.noteId}"])`
             );
             others.forEach((o) => {
               const ox = parseFloat(o.style.left),
@@ -514,6 +526,32 @@
         window.addEventListener("touchend", end);
       }
 
+      function printReceipt() {
+        const input = document.getElementById("inputText");
+        const text = input.value.trim();
+        if (!text) return;
+        playSfx(1000, "sine", 0.05, 0.4);
+        const note_id = `PGR-${Math.floor(Math.random() * 9000 + 1000)}`;
+        const date = new Date().toLocaleString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+        const x = (window.innerWidth / 2 - offsetX) / scale - 160;
+        const y = (window.innerHeight - 250 - offsetY) / scale;
+
+        // 本地立即创建，通过 note_id 占位防重
+        renderReceipt(null, {
+          note_id: note_id,
+          content: text,
+          color: paperColors[currentColorIndex].bg,
+          left_pos: x + "px",
+          top_pos: y + "px",
+          z_index: ++zIndexCounter,
+          date_str: date,
+        });
+        input.value = "";
+      }
+
       function handleSearch(val) {
         const q = val.toLowerCase().trim();
         document.querySelectorAll(".receipt").forEach((n) => {
@@ -530,7 +568,6 @@
         playSfx(200);
       }
 
-      // 画布缩放对焦基础函数
       function focusSingleReceipt(el) {
         const x = parseFloat(el.style.left) + 160;
         const y = parseFloat(el.style.top) + el.offsetHeight / 2;
@@ -541,6 +578,7 @@
         applyTransform();
         setTimeout(() => (viewport.style.transition = "none"), 500);
       }
+
       function typeWriter(el, text, cb) {
         let i = 0;
         const cur = document.createElement("span");
@@ -560,29 +598,7 @@
         }
         type();
       }
-      function printReceipt() {
-        const input = document.getElementById("inputText");
-        const text = input.value.trim();
-        if (!text) return;
-        playSfx(1000, "sine", 0.05, 0.4);
-        const id = `PGR-${Math.floor(Math.random() * 9000 + 1000)}`;
-        const date = new Date().toLocaleString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        });
-        const x = (window.innerWidth / 2 - offsetX) / scale - 160;
-        const y = (window.innerHeight - 250 - offsetY) / scale;
-        renderReceipt(null, {
-          note_id: id,
-          content: text,
-          color: paperColors[currentColorIndex].bg,
-          left_pos: x + "px",
-          top_pos: y + "px",
-          z_index: ++zIndexCounter,
-          date_str: date,
-        });
-        input.value = "";
-      }
+
       function initCanvasPan() {
         let isP = false,
           sx,
@@ -608,6 +624,7 @@
         window.addEventListener("touchmove", move, { passive: false });
         window.addEventListener("touchend", () => (isP = false));
       }
+
       async function removeReceipt(btn) {
         const el = btn.closest(".receipt");
         const dbId = el.dataset.dbId;
@@ -616,6 +633,7 @@
         if (dbId && dbId !== "null")
           await sb.from("notes").delete().eq("id", dbId);
       }
+
       function applyTransform() {
         viewport.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
       }
