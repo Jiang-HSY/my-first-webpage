@@ -6,12 +6,12 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
-    <title>云便签 - 终极修复版</title>
+    <title>云便签 - 满血音效版</title>
     <link
       href="https://fonts.loli.net/css2?family=VT323&family=Space+Mono:wght@400;700&display=swap"
       rel="stylesheet"
     />
-    <script src="https://npm.elemecdn.com/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
       :root {
         --pager-green: #a3d95b;
@@ -330,7 +330,6 @@
     </div>
 
     <script>
-      // 配置：请确保 URL 和 KEY 正确
       const SB_URL = "https://wuronegjubkyevlviswt.supabase.co";
       const SB_KEY = "sb_publishable__FBQPQmrAdcZkixiLgA-xw_j50DyJ8q";
       const MY_SECRET_CODE = "123456";
@@ -349,6 +348,7 @@
         { bg: "#f8bbd0", preview: "#f8bbd0" },
       ];
 
+      // --- 音效引擎 ---
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       function playSfx(freq, type = "sine", vol = 0.02, duration = 0.05) {
         if (audioCtx.state === "suspended") audioCtx.resume();
@@ -375,26 +375,16 @@
         );
       }
 
-      // 核心：初始化与数据加载
+      // --- 核心初始化 ---
       async function initApp() {
         viewport = document.getElementById("viewport");
-        if (typeof window.supabase === "undefined") {
-          console.error("Supabase SDK 未能加载！");
-          return;
-        }
-
-        // 初始化客户端
-        sb = window.supabase.createClient(SB_URL, SB_KEY);
-        console.log("Supabase 连接中...");
-
-        // 获取历史数据
-        const { data, error } = await sb.from("notes").select("*");
-        if (error) {
-          console.error("数据加载失败:", error);
-        } else if (data) {
-          console.log("加载到 " + data.length + " 条便签");
-          data.forEach((item) => renderReceipt(item.id, item, true));
-          setTimeout(focusAllReceipts, 500);
+        if (typeof window.supabase !== "undefined") {
+          sb = window.supabase.createClient(SB_URL, SB_KEY);
+          const { data } = await sb.from("notes").select("*");
+          if (data) {
+            data.forEach((item) => renderReceipt(item.id, item, true));
+            setTimeout(focusAllReceipts, 500);
+          }
         }
       }
 
@@ -402,13 +392,12 @@
         const code = prompt("请输入访问暗号：");
         if (code !== MY_SECRET_CODE) {
           alert("暗号错误！");
-          document.body.innerHTML = "<h1>未授权访问</h1>";
           return;
         }
         initApp();
       };
 
-      // 核心：数据保存
+      // --- 云端同步 ---
       async function saveToCloud(el) {
         if (!sb) return;
         const payload = {
@@ -421,22 +410,15 @@
           date_str: el.querySelector(".receipt-footer span:last-child")
             .innerText,
         };
-
         if (el.dataset.dbId) {
           await sb.from("notes").update(payload).eq("id", el.dataset.dbId);
         } else {
-          const { data, error } = await sb
-            .from("notes")
-            .insert([payload])
-            .select();
-          if (data) {
-            el.dataset.dbId = data[0].id;
-            console.log("云端保存成功:", data[0].id);
-          }
-          if (error) console.error("云端保存失败:", error);
+          const { data } = await sb.from("notes").insert([payload]).select();
+          if (data) el.dataset.dbId = data[0].id;
         }
       }
 
+      // --- 渲染逻辑 ---
       function renderReceipt(dbId, data, isInit = false) {
         const receipt = document.createElement("div");
         receipt.className = "receipt";
@@ -462,7 +444,7 @@
         } else {
           typeWriter(contentEl, data.content, () => {
             receipt.style.transition = "none";
-            saveToCloud(receipt); // 打字结束自动保存
+            saveToCloud(receipt); // 打字结束才保存
           });
         }
         makeDraggable(receipt);
@@ -483,7 +465,8 @@
               cursor
             );
             i++;
-            setTimeout(type, 30);
+            playSfx(800 + Math.random() * 200, "sine", 0.01, 0.02); // 打字音效
+            setTimeout(type, 50);
           } else {
             cursor.remove();
             if (cb) cb();
@@ -496,7 +479,7 @@
         const input = document.getElementById("inputText");
         const text = input.value.trim();
         if (!text) return;
-        playMagicEject();
+        playMagicEject(); // 打印音效
         const idStr = `PGR-${Math.floor(Math.random() * 9000 + 1000)}`;
         const dateStr = new Date().toLocaleString([], {
           hour: "2-digit",
@@ -522,7 +505,7 @@
         input.value = "";
       }
 
-      // UI 交互
+      // --- UI 功能 ---
       function toggleColor() {
         currentColorIndex = (currentColorIndex + 1) % paperColors.length;
         document
