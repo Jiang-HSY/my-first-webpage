@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
-    <title>云便签 - 全功能增强版</title>
+    <title>云便签 - 移动端交互优化版</title>
     <link
       href="https://fonts.loli.net/css2?family=VT323&family=Space+Mono:wght@400;700&display=swap"
       rel="stylesheet"
@@ -37,8 +37,6 @@
         user-select: none;
         touch-action: none;
       }
-
-      /* 画布层 */
       #viewport {
         position: absolute;
         top: 0;
@@ -48,11 +46,6 @@
         transform-origin: 0 0;
         cursor: grab;
       }
-      #viewport:active {
-        cursor: grabbing;
-      }
-
-      /* 固定 UI 层 */
       .fixed-ui {
         position: fixed;
         top: 0;
@@ -100,7 +93,6 @@
         box-sizing: border-box;
         padding: 8px;
       }
-
       .controls {
         display: flex;
         justify-content: space-between;
@@ -117,7 +109,6 @@
         color: #fff;
         cursor: pointer;
         pointer-events: auto;
-        font-size: 18px;
       }
       .print-btn {
         background: var(--accent-red);
@@ -131,7 +122,7 @@
         pointer-events: auto;
       }
 
-      /* 纸条样式 */
+      /* 纸条样式 - 优化点击热区 */
       .receipt {
         position: absolute;
         width: 230px;
@@ -186,6 +177,7 @@
           0% calc(100% - 4px)
         );
         pointer-events: auto;
+        cursor: zoom-in;
       }
       .receipt-header {
         display: flex;
@@ -194,10 +186,12 @@
         color: rgba(0, 0, 0, 0.3);
         border-bottom: 1px dashed rgba(0, 0, 0, 0.08);
         padding-bottom: 6px;
+        pointer-events: none;
       }
       .close-btn {
         cursor: pointer;
         font-size: 20px;
+        pointer-events: auto;
       }
       .receipt-content {
         font-weight: 700;
@@ -205,23 +199,11 @@
         font-size: 14px;
         white-space: pre-wrap;
         margin: 10px 0;
-        min-height: 20px;
-      }
-      .cursor {
-        display: inline-block;
-        width: 6px;
-        height: 14px;
-        background: var(--accent-red);
-        animation: blink 0.8s infinite;
-        vertical-align: middle;
-      }
-      @keyframes blink {
-        50% {
-          opacity: 0;
-        }
+        min-height: 40px;
+        outline: none;
+        cursor: text;
       }
 
-      /* 缩放控制 */
       .zoom-controls {
         position: fixed;
         right: 20px;
@@ -243,14 +225,11 @@
         cursor: pointer;
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
         border: 1px solid #eee;
-        font-weight: bold;
-        color: #444;
       }
     </style>
   </head>
   <body>
     <div id="viewport"></div>
-
     <div class="fixed-ui">
       <div class="pager-container">
         <div class="pager-body">
@@ -258,7 +237,7 @@
             <textarea
               id="inputText"
               class="lcd-screen"
-              placeholder="TYPE MESSAGE..."
+              placeholder="TYPE..."
             ></textarea>
           </div>
           <div class="controls">
@@ -270,7 +249,6 @@
           </div>
         </div>
       </div>
-
       <div class="zoom-controls">
         <div class="zoom-btn" onclick="changeZoom(0.1)">＋</div>
         <div class="zoom-btn" onclick="changeZoom(-0.1)">－</div>
@@ -289,16 +267,14 @@
         offsetY = 0,
         zIndexCounter = 100,
         currentColorIndex = 0;
-
-      // 1. 七种颜色配置
       const paperColors = [
-        { bg: "#ffffff", p: "#7dff7d" }, // 白
-        { bg: "#fff9c4", p: "#fff9c4" }, // 黄
-        { bg: "#c8e6c9", p: "#c8e6c9" }, // 绿
-        { bg: "#f8bbd0", p: "#f8bbd0" }, // 粉
-        { bg: "#e1f5fe", p: "#e1f5fe" }, // 蓝
-        { bg: "#ede7f6", p: "#ede7f6" }, // 紫
-        { bg: "#ffe0b2", p: "#ffe0b2" }, // 橙
+        { bg: "#ffffff", p: "#7dff7d" },
+        { bg: "#fff9c4", p: "#fff9c4" },
+        { bg: "#c8e6c9", p: "#c8e6c9" },
+        { bg: "#f8bbd0", p: "#f8bbd0" },
+        { bg: "#e1f5fe", p: "#e1f5fe" },
+        { bg: "#ede7f6", p: "#ede7f6" },
+        { bg: "#ffe0b2", p: "#ffe0b2" },
       ];
 
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -318,14 +294,10 @@
 
       async function initApp() {
         viewport = document.getElementById("viewport");
-        try {
-          sb = window.supabase.createClient(SB_URL, SB_KEY);
-          const { data } = await sb.from("notes").select("*");
-          if (data) data.forEach((item) => renderReceipt(item.id, item, true));
-        } catch (e) {
-          console.error(e);
-        }
-        initCanvasPan(); // 初始化画布拖拽
+        sb = window.supabase.createClient(SB_URL, SB_KEY);
+        const { data } = await sb.from("notes").select("*");
+        if (data) data.forEach((item) => renderReceipt(item.id, item, true));
+        initCanvasPan();
       }
 
       async function saveToCloud(el) {
@@ -340,14 +312,14 @@
           left_pos: el.style.left,
           top_pos: el.style.top,
           z_index: parseInt(el.style.zIndex) || 100,
-          date_str: el.querySelector("span:last-child").innerText,
+          date_str: el.querySelector(".footer-date").innerText,
         };
         try {
-          if (el.dataset.dbId && el.dataset.dbId !== "null") {
+          if (el.dataset.dbId && el.dataset.dbId !== "null")
             await sb.from("notes").update(payload).eq("id", el.dataset.dbId);
-          } else {
+          else {
             const { data } = await sb.from("notes").insert([payload]).select();
-            if (data && data[0]) el.dataset.dbId = data[0].id;
+            if (data) el.dataset.dbId = data[0].id;
           }
         } finally {
           el.dataset.saving = "false";
@@ -365,42 +337,85 @@
         receipt.style.left = data.left_pos;
         receipt.style.top = data.top_pos;
         receipt.style.zIndex = data.z_index || 100;
-        if (isInit) receipt.style.transition = "none";
 
         receipt.innerHTML = `
             <div class="receipt-header"><span>${data.note_id}</span><span class="close-btn" onclick="removeReceipt(this)">×</span></div>
-            <div class="receipt-content"></div>
-            <div style="display:flex; justify-content:space-between; font-size:8px; color:rgba(0,0,0,0.2); border-top:1px dashed rgba(0,0,0,0.08); padding-top:5px;">
-                <span>ID:${data.note_id}</span><span>${data.date_str}</span>
+            <div class="receipt-content" contenteditable="true" spellcheck="false"></div>
+            <div style="display:flex; justify-content:space-between; font-size:8px; color:rgba(0,0,0,0.2); border-top:1px dashed rgba(0,0,0,0.08); padding-top:5px; pointer-events:none;">
+                <span>ID:${data.note_id}</span><span class="footer-date">${data.date_str}</span>
             </div>`;
+
         viewport.appendChild(receipt);
         const contentEl = receipt.querySelector(".receipt-content");
-        if (isInit) contentEl.innerText = data.content;
-        else
+
+        if (isInit) {
+          receipt.style.transition = "none";
+          contentEl.innerText = data.content;
+        } else {
           typeWriter(contentEl, data.content, () => {
             receipt.style.transition = "none";
             saveToCloud(receipt);
           });
+        }
+
+        // --- 逻辑优化：区分点击区域 ---
+        receipt.addEventListener("mousedown", (e) => {
+          // 如果点击的是内容区域，不触发居中，让用户编辑
+          if (e.target === contentEl) return;
+          // 如果点击的是关闭按钮，不触发居中
+          if (e.target.classList.contains("close-btn")) return;
+
+          // 否则，点击纸条其他地方，触发居中
+          focusSingleReceipt(receipt);
+        });
+
+        // 移动端兼容
+        receipt.addEventListener(
+          "touchstart",
+          (e) => {
+            if (
+              e.target === contentEl ||
+              e.target.classList.contains("close-btn")
+            )
+              return;
+            focusSingleReceipt(receipt);
+          },
+          { passive: true }
+        );
+
+        contentEl.addEventListener("blur", () => saveToCloud(receipt));
+        contentEl.addEventListener("input", () =>
+          playSfx(1200, "sine", 0.005, 0.02)
+        );
+
         makeDraggable(receipt);
         zIndexCounter = Math.max(zIndexCounter, parseInt(data.z_index) || 100);
+      }
+
+      function focusSingleReceipt(el) {
+        const x = parseFloat(el.style.left) + 115;
+        const y = parseFloat(el.style.top) + el.offsetHeight / 2;
+        scale = 1;
+        offsetX = window.innerWidth / 2 - x * scale;
+        offsetY = window.innerHeight / 2 - y * scale;
+        viewport.style.transition = "all 0.5s cubic-bezier(0.25, 1, 0.5, 1)";
+        applyTransform();
+        setTimeout(() => (viewport.style.transition = "none"), 500);
+        playSfx(1500, "sine", 0.03, 0.2);
       }
 
       function typeWriter(el, text, cb) {
         let i = 0;
         const cur = document.createElement("span");
         cur.className = "cursor";
+        el.innerHTML = "";
         el.appendChild(cur);
         function type() {
           if (i < text.length) {
-            el.insertBefore(
-              text[i] === "\n"
-                ? document.createElement("br")
-                : document.createTextNode(text[i]),
-              cur
-            );
+            el.insertBefore(document.createTextNode(text[i]), cur);
             i++;
             playSfx(800 + Math.random() * 200, "sine", 0.01, 0.02);
-            setTimeout(type, 50);
+            setTimeout(type, 30);
           } else {
             cur.remove();
             if (cb) cb();
@@ -421,7 +436,6 @@
         });
         const x = (window.innerWidth / 2 - offsetX) / scale - 115;
         const y = (window.innerHeight - 250 - offsetY) / scale;
-
         renderReceipt(null, {
           note_id: id,
           content: text,
@@ -431,7 +445,6 @@
           z_index: ++zIndexCounter,
           date_str: date,
         });
-
         const all = document.querySelectorAll(".receipt");
         const newEl = all[all.length - 1];
         setTimeout(() => {
@@ -440,36 +453,32 @@
         input.value = "";
       }
 
-      // --- 核心修复：双端画布拖拽 ---
       function initCanvasPan() {
-        let isPanning = false,
-          startX,
-          startY;
-        const onStart = (e) => {
+        let isP = false,
+          sx,
+          sy;
+        const start = (e) => {
           if (e.target !== viewport && e.target !== document.body) return;
-          isPanning = true;
+          isP = true;
           const t = e.type.includes("touch") ? e.touches[0] : e;
-          startX = t.clientX - offsetX;
-          startY = t.clientY - offsetY;
+          sx = t.clientX - offsetX;
+          sy = t.clientY - offsetY;
         };
-        const onMove = (e) => {
-          if (!isPanning) return;
+        const move = (e) => {
+          if (!isP) return;
           const t = e.type.includes("touch") ? e.touches[0] : e;
-          offsetX = t.clientX - startX;
-          offsetY = t.clientY - startY;
+          offsetX = t.clientX - sx;
+          offsetY = t.clientY - sy;
           applyTransform();
         };
-        const onEnd = () => (isPanning = false);
-
-        window.addEventListener("mousedown", onStart);
-        window.addEventListener("mousemove", onMove);
-        window.addEventListener("mouseup", onEnd);
-        window.addEventListener("touchstart", onStart, { passive: false });
-        window.addEventListener("touchmove", onMove, { passive: false });
-        window.addEventListener("touchend", onEnd);
+        window.addEventListener("mousedown", start);
+        window.addEventListener("mousemove", move);
+        window.addEventListener("mouseup", () => (isP = false));
+        window.addEventListener("touchstart", start, { passive: false });
+        window.addEventListener("touchmove", move, { passive: false });
+        window.addEventListener("touchend", () => (isP = false));
       }
 
-      // --- 纸条拖拽 ---
       function makeDraggable(el) {
         let isD = false,
           sx,
@@ -477,7 +486,11 @@
           ix,
           iy;
         const start = (e) => {
-          if (e.target.classList.contains("close-btn")) return;
+          if (
+            e.target.classList.contains("close-btn") ||
+            e.target.contentEditable === "true"
+          )
+            return;
           e.stopPropagation();
           isD = true;
           el.style.zIndex = ++zIndexCounter;
@@ -516,7 +529,6 @@
           await sb.from("notes").delete().eq("id", dbId);
       }
 
-      // --- 视图与缩放 ---
       function applyTransform() {
         viewport.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
       }
@@ -533,7 +545,7 @@
 
       function focusAllReceipts() {
         const items = document.querySelectorAll(".receipt");
-        if (items.length === 0) return resetCanvas();
+        if (!items.length) return resetCanvas();
         let minX = Infinity,
           maxX = -Infinity,
           minY = Infinity,
@@ -546,15 +558,13 @@
           minY = Math.min(minY, y);
           maxY = Math.max(maxY, y + el.offsetHeight);
         });
-        const midX = (minX + maxX) / 2,
-          midY = (minY + maxY) / 2;
         scale = Math.min(
           window.innerWidth / (maxX - minX + 100),
           window.innerHeight / (maxY - minY + 200),
           1
         );
-        offsetX = window.innerWidth / 2 - midX * scale;
-        offsetY = window.innerHeight / 2 - midY * scale;
+        offsetX = window.innerWidth / 2 - ((minX + maxX) / 2) * scale;
+        offsetY = window.innerHeight / 2 - ((minY + maxY) / 2) * scale;
         viewport.style.transition = "all 0.6s ease";
         applyTransform();
         setTimeout(() => (viewport.style.transition = "none"), 600);
@@ -576,7 +586,7 @@
       }
 
       window.onload = () => {
-        const code = prompt("请输入访问暗号：");
+        const code = prompt("请输入暗号：");
         if (code === "123456") initApp();
         else alert("暗号错误");
       };
