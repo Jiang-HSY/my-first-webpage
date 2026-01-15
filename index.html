@@ -142,7 +142,7 @@
         position: absolute;
         width: var(--note-width);
         background: var(--this-paper-color);
-        padding: 12px 18px;
+        padding: 16px 20px;
         box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
         z-index: 50;
         transition: transform 0.2s;
@@ -191,6 +191,45 @@
           97.5% 0,
           100% 4px,
           100% calc(100% - 4px),
+          97.5% 100%,
+          95% calc(100% - 4px),
+          92.5% 100%,
+          90% calc(100% - 4px),
+          87.5% 100%,
+          85% calc(100% - 4px),
+          82.5% 100%,
+          80% calc(100% - 4px),
+          77.5% 100%,
+          75% calc(100% - 4px),
+          72.5% 100%,
+          70% calc(100% - 4px),
+          67.5% 100%,
+          65% calc(100% - 4px),
+          62.5% 100%,
+          60% calc(100% - 4px),
+          57.5% 100%,
+          55% calc(100% - 4px),
+          52.5% 100%,
+          50% calc(100% - 4px),
+          47.5% 100%,
+          45% calc(100% - 4px),
+          42.5% 100%,
+          40% calc(100% - 4px),
+          37.5% 100%,
+          35% calc(100% - 4px),
+          32.5% 100%,
+          30% calc(100% - 4px),
+          27.5% 100%,
+          25% calc(100% - 4px),
+          22.5% 100%,
+          20% calc(100% - 4px),
+          17.5% 100%,
+          15% calc(100% - 4px),
+          12.5% 100%,
+          10% calc(100% - 4px),
+          7.5% 100%,
+          5% calc(100% - 4px),
+          2.5% 100%,
           0% calc(100% - 4px)
         );
       }
@@ -205,6 +244,7 @@
       .receipt-header {
         display: flex;
         justify-content: space-between;
+        align-items: center;
         font-size: 10px;
         color: rgba(0, 0, 0, 0.3);
         border-bottom: 1px dashed rgba(0, 0, 0, 0.08);
@@ -214,6 +254,7 @@
       .close-btn {
         cursor: pointer;
         font-size: 18px;
+        line-height: 24px;
         pointer-events: auto;
       }
       .receipt-content {
@@ -222,7 +263,7 @@
         font-size: 14px;
         white-space: pre-wrap;
         margin: 10px 0;
-        min-height: 30px;
+        min-height: 40px;
         outline: none;
       }
       .zoom-controls {
@@ -442,7 +483,7 @@
         receipt.innerHTML = `
             <div class="receipt-header"><span>${data.note_id}</span><span class="close-btn" onclick="removeReceipt(this)">×</span></div>
             <div class="receipt-content" contenteditable="true" spellcheck="false"></div>
-            <div style="display:flex; justify-content:space-between; font-size:8px; color:rgba(0,0,0,0.2); border-top:1px dashed rgba(0,0,0,0.08); padding-top:5px; pointer-events:none;">
+            <div style="display:flex; justify-content:space-between; font-size:8px; color:rgba(0,0,0,0.2); border-top:1px dashed rgba(0,0,0,0.08); padding-top:10px; pointer-events:none;">
                 <span>ID:${data.note_id}</span><span class="footer-date">${data.date_str}</span>
             </div>`;
 
