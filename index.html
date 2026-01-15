@@ -6,14 +6,13 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
-    <title>云便签 - Supabase版</title>
+    <title>云便签 - 修复版</title>
     <link
       href="https://fonts.loli.net/css2?family=VT323&family=Space+Mono:wght@400;700&display=swap"
       rel="stylesheet"
     />
     <script src="https://npm.elemecdn.com/@supabase/supabase-js@2"></script>
     <style>
-      /* 继承你最喜欢的 UI 样式 */
       :root {
         --pager-green: #a3d95b;
         --accent-red: #ff6b6b;
@@ -117,6 +116,7 @@
         color: #fff;
         pointer-events: auto;
         font-size: 20px;
+        cursor: pointer;
       }
       .print-btn {
         background: var(--accent-red);
@@ -129,6 +129,33 @@
         cursor: pointer;
         pointer-events: auto;
       }
+
+      /* 补回缩放工具栏样式 */
+      .zoom-controls {
+        position: fixed;
+        right: 20px;
+        bottom: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        pointer-events: auto;
+        z-index: 4000;
+      }
+      .zoom-btn {
+        width: 45px;
+        height: 45px;
+        background: white;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-weight: bold;
+        color: #666;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        border: 1px solid #eee;
+      }
+
       .receipt {
         position: absolute;
         width: 220px;
@@ -256,19 +283,6 @@
         font-size: 8px;
         color: rgba(0, 0, 0, 0.2);
       }
-      .cursor {
-        display: inline-block;
-        width: 6px;
-        height: 14px;
-        background: var(--accent-red);
-        animation: blink 0.8s infinite;
-        vertical-align: middle;
-      }
-      @keyframes blink {
-        50% {
-          opacity: 0;
-        }
-      }
     </style>
   </head>
   <body>
@@ -292,27 +306,52 @@
           </div>
         </div>
       </div>
+      <div class="zoom-controls">
+        <div class="zoom-btn" onclick="changeZoom(0.1)">＋</div>
+        <div class="zoom-btn" onclick="changeZoom(-0.1)">－</div>
+        <div class="zoom-btn" onclick="resetCanvas()">↺</div>
+      </div>
     </div>
 
     <script>
-      // --- 填入你的 Supabase 配置 ---
+      // 1. 配置
       const SB_URL = "https://wuronegjubkyevlviswt.supabase.co";
       const SB_KEY = "sb_publishable__FBQPQmrAdcZkixiLgA-xw_j50DyJ8q";
-      const supabase = supabase.createClient(SB_URL, SB_KEY);
+      const MY_SECRET_CODE = "123456"; // 访问暗号
 
-      const viewport = document.getElementById("viewport");
-      let scale = 1,
+      const paperColors = [
+        { bg: "#ffffff", preview: "#7dff7d" },
+        { bg: "#fff9c4", preview: "#fff9c4" },
+        { bg: "#c8e6c9", preview: "#c8e6c9" },
+        { bg: "#f8bbd0", preview: "#f8bbd0" },
+      ];
+
+      let supabase,
+        viewport,
+        currentColorIndex = 0,
+        scale = 1,
         offsetX = 0,
         offsetY = 0,
         zIndexCounter = 100;
 
-      // 初始化加载
+      // 2. 访问控制与初始化
       window.onload = async () => {
-        const { data } = await supabase.from("notes").select("*");
+        const code = prompt("请输入访问暗号：");
+        if (code !== MY_SECRET_CODE) {
+          alert("暗号错误！");
+          document.body.innerHTML = "<h1>未授权访问</h1>";
+          return;
+        }
+
+        viewport = document.getElementById("viewport");
+        // 正确初始化 Supabase
+        supabase = window.supabase.createClient(SB_URL, SB_KEY);
+
+        const { data, error } = await supabase.from("notes").select("*");
         if (data) data.forEach((item) => renderReceipt(item.id, item));
       };
 
-      // 云端同步：保存/更新
+      // 3. 核心功能
       async function saveToCloud(el) {
         const payload = {
           note_id: el.querySelector(".receipt-header span").innerText,
@@ -338,7 +377,6 @@
         }
       }
 
-      // 核心渲染逻辑
       function renderReceipt(dbId, data) {
         const receipt = document.createElement("div");
         receipt.className = "receipt";
@@ -351,33 +389,25 @@
         receipt.style.top = data.top_pos || "100px";
         receipt.style.zIndex = data.z_index || 100;
         receipt.innerHTML = `
-                <div class="receipt-header"><span>${data.note_id}</span><span class="close-btn" onclick="removeReceipt(this)">×</span></div>
-                <div class="receipt-content">${data.content}</div>
-                <div class="receipt-footer"><span>ID:${data.note_id}</span><span>${data.date_str}</span></div>
-            `;
+          <div class="receipt-header"><span>${data.note_id}</span><span class="close-btn" onclick="removeReceipt(this)">×</span></div>
+          <div class="receipt-content">${data.content}</div>
+          <div class="receipt-footer"><span>ID:${data.note_id}</span><span>${data.date_str}</span></div>
+        `;
         viewport.appendChild(receipt);
         makeDraggable(receipt);
         zIndexCounter = Math.max(zIndexCounter, data.z_index);
       }
 
-      async function removeReceipt(btn) {
-        const el = btn.closest(".receipt");
-        if (el.dataset.dbId)
-          await supabase.from("notes").delete().eq("id", el.dataset.dbId);
-        el.remove();
-      }
-
-      // 打印与动画逻辑
       function printReceipt() {
         const input = document.getElementById("inputText");
         const text = input.value.trim();
         if (!text) return;
+
         const idStr = `PGR-${Math.floor(Math.random() * 9000 + 1000)}`;
         const dateStr = new Date().toLocaleString([], {
           hour: "2-digit",
           minute: "2-digit",
         });
-
         const x = (window.innerWidth / 2 - offsetX) / scale - 110;
         const yStart = (window.innerHeight - 200 - offsetY) / scale;
 
@@ -390,30 +420,49 @@
           z_index: ++zIndexCounter,
           date_str: dateStr,
         };
-        renderReceipt(null, data);
 
-        const allReceipts = document.querySelectorAll(".receipt");
-        const newEl = allReceipts[allReceipts.length - 1];
-        saveToCloud(newEl);
+        renderReceipt(null, data);
+        const all = document.querySelectorAll(".receipt");
+        saveToCloud(all[all.length - 1]);
         input.value = "";
       }
 
-      // 辅助 UI 函数 (颜色切换、拖拽等...)
-      const paperColors = [
-        { bg: "#ffffff" },
-        { bg: "#fff9c4" },
-        { bg: "#c8e6c9" },
-        { bg: "#f8bbd0" },
-      ];
-      let currentColorIndex = 0;
+      // 4. 交互函数
       function toggleColor() {
         currentColorIndex = (currentColorIndex + 1) % paperColors.length;
+        document
+          .getElementById("inputText")
+          .style.setProperty(
+            "--paper-preview",
+            paperColors[currentColorIndex].preview
+          );
       }
+
       function clearText() {
         document.getElementById("inputText").value = "";
       }
+
+      function changeZoom(d) {
+        scale = Math.min(Math.max(0.1, scale + d), 3);
+        applyTransform();
+      }
+
+      function resetCanvas() {
+        scale = 1;
+        offsetX = 0;
+        offsetY = 0;
+        applyTransform();
+      }
+
       function applyTransform() {
         viewport.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+      }
+
+      function removeReceipt(btn) {
+        const el = btn.closest(".receipt");
+        if (el.dataset.dbId)
+          supabase.from("notes").delete().eq("id", el.dataset.dbId);
+        el.remove();
       }
 
       function makeDraggable(el) {
