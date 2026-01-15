@@ -330,11 +330,12 @@
     </div>
 
     <script>
+      // 配置：请确保 URL 和 KEY 正确
       const SB_URL = "https://wuronegjubkyevlviswt.supabase.co";
       const SB_KEY = "sb_publishable__FBQPQmrAdcZkixiLgA-xw_j50DyJ8q";
       const MY_SECRET_CODE = "123456";
 
-      let sbClient,
+      let sb,
         viewport,
         currentColorIndex = 0,
         scale = 1,
@@ -350,6 +351,7 @@
 
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       function playSfx(freq, type = "sine", vol = 0.02, duration = 0.05) {
+        if (audioCtx.state === "suspended") audioCtx.resume();
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
         osc.type = type;
@@ -373,27 +375,42 @@
         );
       }
 
-      window.onload = async () => {
+      // 核心：初始化与数据加载
+      async function initApp() {
+        viewport = document.getElementById("viewport");
+        if (typeof window.supabase === "undefined") {
+          console.error("Supabase SDK 未能加载！");
+          return;
+        }
+
+        // 初始化客户端
+        sb = window.supabase.createClient(SB_URL, SB_KEY);
+        console.log("Supabase 连接中...");
+
+        // 获取历史数据
+        const { data, error } = await sb.from("notes").select("*");
+        if (error) {
+          console.error("数据加载失败:", error);
+        } else if (data) {
+          console.log("加载到 " + data.length + " 条便签");
+          data.forEach((item) => renderReceipt(item.id, item, true));
+          setTimeout(focusAllReceipts, 500);
+        }
+      }
+
+      window.onload = () => {
         const code = prompt("请输入访问暗号：");
         if (code !== MY_SECRET_CODE) {
           alert("暗号错误！");
-          document.body.innerHTML = "<h1>已拒绝授权</h1>";
+          document.body.innerHTML = "<h1>未授权访问</h1>";
           return;
         }
-        viewport = document.getElementById("viewport");
-
-        // 修复初始化逻辑
-        if (typeof window.supabase !== "undefined") {
-          sbClient = window.supabase.createClient(SB_URL, SB_KEY);
-          const { data, error } = await sbClient.from("notes").select("*");
-          if (data) {
-            data.forEach((item) => renderReceipt(item.id, item, true));
-            setTimeout(focusAllReceipts, 500);
-          }
-        }
+        initApp();
       };
 
+      // 核心：数据保存
       async function saveToCloud(el) {
+        if (!sb) return;
         const payload = {
           note_id: el.querySelector(".receipt-header span").innerText,
           content: el.querySelector(".receipt-content").innerText,
@@ -404,17 +421,19 @@
           date_str: el.querySelector(".receipt-footer span:last-child")
             .innerText,
         };
+
         if (el.dataset.dbId) {
-          await sbClient
-            .from("notes")
-            .update(payload)
-            .eq("id", el.dataset.dbId);
+          await sb.from("notes").update(payload).eq("id", el.dataset.dbId);
         } else {
-          const { data } = await sbClient
+          const { data, error } = await sb
             .from("notes")
             .insert([payload])
             .select();
-          if (data) el.dataset.dbId = data[0].id;
+          if (data) {
+            el.dataset.dbId = data[0].id;
+            console.log("云端保存成功:", data[0].id);
+          }
+          if (error) console.error("云端保存失败:", error);
         }
       }
 
@@ -443,7 +462,7 @@
         } else {
           typeWriter(contentEl, data.content, () => {
             receipt.style.transition = "none";
-            saveToCloud(receipt);
+            saveToCloud(receipt); // 打字结束自动保存
           });
         }
         makeDraggable(receipt);
@@ -503,6 +522,7 @@
         input.value = "";
       }
 
+      // UI 交互
       function toggleColor() {
         currentColorIndex = (currentColorIndex + 1) % paperColors.length;
         document
@@ -513,7 +533,6 @@
           );
         playSfx(600);
       }
-
       function clearText() {
         document.getElementById("inputText").value = "";
         playSfx(200);
@@ -561,8 +580,8 @@
 
       async function removeReceipt(btn) {
         const el = btn.closest(".receipt");
-        if (el.dataset.dbId)
-          await sbClient.from("notes").delete().eq("id", el.dataset.dbId);
+        if (el.dataset.dbId && sb)
+          await sb.from("notes").delete().eq("id", el.dataset.dbId);
         el.remove();
         playSfx(300, "sine", 0.05, 0.1);
       }
@@ -573,27 +592,27 @@
 
       function makeDraggable(el) {
         let isDragging = false,
-          startX,
-          startY,
-          initX,
-          initY;
+          sX,
+          sY,
+          iX,
+          iY;
         const start = (e) => {
           if (e.target.classList.contains("close-btn")) return;
           e.stopPropagation();
           isDragging = true;
           el.style.zIndex = ++zIndexCounter;
           el.style.transition = "none";
-          const touch = e.type === "touchstart" ? e.touches[0] : e;
-          startX = touch.clientX;
-          startY = touch.clientY;
-          initX = parseFloat(el.style.left);
-          initY = parseFloat(el.style.top);
+          const t = e.type === "touchstart" ? e.touches[0] : e;
+          sX = t.clientX;
+          sY = t.clientY;
+          iX = parseFloat(el.style.left);
+          iY = parseFloat(el.style.top);
         };
         const move = (e) => {
           if (!isDragging) return;
-          const touch = e.type === "touchmove" ? e.touches[0] : e;
-          el.style.left = initX + (touch.clientX - startX) / scale + "px";
-          el.style.top = initY + (touch.clientY - startY) / scale + "px";
+          const t = e.type === "touchmove" ? e.touches[0] : e;
+          el.style.left = iX + (t.clientX - sX) / scale + "px";
+          el.style.top = iY + (t.clientY - sY) / scale + "px";
         };
         const end = () => {
           if (isDragging) {
