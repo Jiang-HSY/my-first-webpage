@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
-    <title>云便签 - 终极优化版</title>
+    <title>云便签 - 终极修复版</title>
     <link
       href="https://fonts.loli.net/css2?family=VT323&family=Space+Mono:wght@400;700&display=swap"
       rel="stylesheet"
@@ -56,7 +56,6 @@
         align-items: center;
         justify-content: flex-end;
       }
-
       .pager-container {
         pointer-events: auto;
         margin-bottom: 20px;
@@ -92,7 +91,6 @@
         box-sizing: border-box;
         padding: 8px;
       }
-
       .search-bar {
         width: 100%;
         background: #1a1a1a;
@@ -112,7 +110,6 @@
         outline: none;
         font-size: 16px;
       }
-
       .controls {
         display: flex;
         justify-content: space-between;
@@ -141,7 +138,6 @@
         cursor: pointer;
         pointer-events: auto;
       }
-
       .receipt {
         position: absolute;
         width: var(--note-width);
@@ -201,12 +197,11 @@
       .receipt.dragging {
         scale: 1.02;
         box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
-        z-index: 1500 !important;
+        z-index: 9999 !important;
       }
       .receipt.hidden-note {
         display: none;
       }
-
       .receipt-header {
         display: flex;
         justify-content: space-between;
@@ -230,7 +225,6 @@
         min-height: 30px;
         outline: none;
       }
-
       .zoom-controls {
         position: fixed;
         right: 20px;
@@ -289,8 +283,8 @@
       <div class="zoom-controls">
         <div class="zoom-btn" onclick="changeZoom(0.1)">＋</div>
         <div class="zoom-btn" onclick="changeZoom(-0.1)">－</div>
-        <div class="zoom-btn" onclick="focusAllReceipts()">ALL</div>
-        <div class="zoom-btn" onclick="resetCanvas()">↺</div>
+        <div class="zoom-btn" onclick="focusAllReceipts(true)">ALL</div>
+        <div class="zoom-btn" onclick="resetCanvasToCenter()">↺</div>
       </div>
     </div>
 
@@ -338,17 +332,19 @@
         viewport = document.getElementById("viewport");
         sb = window.supabase.createClient(SB_URL, SB_KEY);
 
-        // 打字音效绑定
-        const lcd = document.getElementById("inputText");
-        lcd.addEventListener("input", () => {
+        document.getElementById("inputText").addEventListener("input", () => {
           playSfx(1000 + Math.random() * 200, "sine", 0.015, 0.05);
         });
 
         const { data } = await sb.from("notes").select("*");
         if (data && data.length > 0) {
-          data.forEach((item) => renderReceipt(item.id, item, true));
-          // 加载完成后自动全量居中显示
-          setTimeout(focusAllReceipts, 300);
+          // 修复关键：初始化时找到数据库中最大的 z_index
+          data.forEach((item) => {
+            renderReceipt(item.id, item, true);
+            if (item.z_index)
+              zIndexCounter = Math.max(zIndexCounter, parseInt(item.z_index));
+          });
+          setTimeout(() => focusAllReceipts(true), 300);
         }
 
         sb.channel("db-changes")
@@ -378,6 +374,7 @@
                   el.style.transition = "all 0.5s ease";
                   el.style.left = payload.new.left_pos;
                   el.style.top = payload.new.top_pos;
+                  el.style.zIndex = payload.new.z_index;
                   el.querySelector(".receipt-content").innerText =
                     payload.new.content;
                   setTimeout(() => (el.style.transition = "none"), 500);
@@ -492,6 +489,7 @@
           e.stopPropagation();
           isD = true;
           el.classList.add("dragging");
+          // 每次点击都会让当前便签 zIndex 增加，保证在最上
           el.style.zIndex = ++zIndexCounter;
           const t = e.type.includes("touch") ? e.touches[0] : e;
           sx = t.clientX;
@@ -563,6 +561,7 @@
         const startY = (window.innerHeight - 180 - offsetY) / scale;
         const targetY = (window.innerHeight / 2 - 100 - offsetY) / scale;
 
+        // 打印新便签时 zIndex 递增，确保最上层
         renderReceipt(null, {
           note_id: nid,
           content: text,
@@ -666,17 +665,18 @@
         applyTransform();
         playSfx(1500, "sine", 0.005, 0.05);
       }
-      function resetCanvas() {
-        scale = 1;
-        offsetX = 0;
-        offsetY = 0;
-        applyTransform();
-        playSfx(500, "sine", 0.01, 0.2);
-      }
 
-      function focusAllReceipts() {
+      // --- 居中逻辑优化 ---
+      function focusAllReceipts(shouldScale = true) {
         const items = document.querySelectorAll(".receipt:not(.hidden-note)");
-        if (!items.length) return resetCanvas();
+        if (!items.length) {
+          scale = 1;
+          offsetX = 0;
+          offsetY = 0;
+          applyTransform();
+          return;
+        }
+
         let minX = Infinity,
           maxX = -Infinity,
           minY = Infinity,
@@ -689,18 +689,32 @@
           minY = Math.min(minY, y);
           maxY = Math.max(maxY, y + el.offsetHeight);
         });
-        scale = Math.min(
-          window.innerWidth / (maxX - minX + 100),
-          (window.innerHeight - 300) / (maxY - minY + 100),
-          1
-        );
-        offsetX = window.innerWidth / 2 - ((minX + maxX) / 2) * scale;
-        offsetY = window.innerHeight / 2 - ((minY + maxY) / 2) * scale;
+
+        const centerX = (minX + maxX) / 2;
+        const centerY = (minY + maxY) / 2;
+
+        if (shouldScale) {
+          scale = Math.min(
+            window.innerWidth / (maxX - minX + 100),
+            (window.innerHeight - 300) / (maxY - minY + 100),
+            1
+          );
+        } else {
+          scale = 1; // ↺ 按钮强制 100% 比例
+        }
+
+        offsetX = window.innerWidth / 2 - centerX * scale;
+        offsetY = window.innerHeight / 2 - centerY * scale;
+
         viewport.style.transition = "all 0.6s ease";
         applyTransform();
         setTimeout(() => (viewport.style.transition = "none"), 600);
         playSfx(700, "sine", 0.01, 0.3);
       }
+
+      function resetCanvasToCenter() {
+        focusAllReceipts(false);
+      } // ↺ 重置按钮：居中但不缩放
 
       function toggleColor() {
         currentColorIndex = (currentColorIndex + 1) % paperColors.length;
