@@ -593,10 +593,18 @@
         if (!text) return;
         playSfx(800, "sawtooth", 0.03, 0.4);
         const nid = `PGR-${Math.floor(Math.random() * 9000 + 1000)}`;
-        const date = new Date().toLocaleString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        });
+        // 在 printReceipt 函数内修改这一行
+        const date = new Date()
+          .toLocaleString("zh-CN", {
+            year: "numeric",
+            month: "numeric",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            hour12: false,
+          })
+          .replace(/\//g, "/");
 
         const x = (window.innerWidth / 2 - offsetX) / scale - 160;
         const startY = (window.innerHeight - 180 - offsetY) / scale;
