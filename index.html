@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
-    <title>我的云便签 - 全功能版</title>
+    <title>云便签 - 全功能版</title>
     <link
       href="https://fonts.loli.net/css2?family=VT323&family=Space+Mono:wght@400;700&display=swap"
       rel="stylesheet"
@@ -132,7 +132,6 @@
         cursor: pointer;
         pointer-events: auto;
       }
-
       .zoom-controls {
         position: fixed;
         right: 20px;
@@ -157,7 +156,6 @@
         box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
         border: 1px solid #eee;
       }
-
       .receipt {
         position: absolute;
         width: 230px;
@@ -332,17 +330,9 @@
     </div>
 
     <script>
-      // 1. 配置
       const SB_URL = "https://wuronegjubkyevlviswt.supabase.co";
       const SB_KEY = "sb_publishable__FBQPQmrAdcZkixiLgA-xw_j50DyJ8q";
-      const MY_SECRET_CODE = "123456"; // 你的暗号
-
-      const paperColors = [
-        { bg: "#ffffff", preview: "#7dff7d" },
-        { bg: "#fff9c4", preview: "#fff9c4" },
-        { bg: "#c8e6c9", preview: "#c8e6c9" },
-        { bg: "#f8bbd0", preview: "#f8bbd0" },
-      ];
+      const MY_SECRET_CODE = "123456";
 
       let supabase,
         viewport,
@@ -351,9 +341,14 @@
         offsetX = 0,
         offsetY = 0,
         zIndexCounter = 100;
-      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const paperColors = [
+        { bg: "#ffffff", preview: "#7dff7d" },
+        { bg: "#fff9c4", preview: "#fff9c4" },
+        { bg: "#c8e6c9", preview: "#c8e6c9" },
+        { bg: "#f8bbd0", preview: "#f8bbd0" },
+      ];
 
-      // 2. 音效引擎
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       function playSfx(freq, type = "sine", vol = 0.02, duration = 0.05) {
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
@@ -378,7 +373,6 @@
         );
       }
 
-      // 3. 初始化加载
       window.onload = async () => {
         const code = prompt("请输入访问暗号：");
         if (code !== MY_SECRET_CODE) {
@@ -386,18 +380,18 @@
           document.body.innerHTML = "<h1>已拒绝授权</h1>";
           return;
         }
-
         viewport = document.getElementById("viewport");
-        supabase = window.supabase.createClient(SB_URL, SB_KEY);
-
-        const { data } = await supabase.from("notes").select("*");
-        if (data) {
-          data.forEach((item) => renderReceipt(item.id, item, true));
-          setTimeout(focusAllReceipts, 500);
+        // 等待 SDK 加载后初始化
+        if (typeof window.supabase !== "undefined") {
+          supabase = window.supabase.createClient(SB_URL, SB_KEY);
+          const { data, error } = await supabase.from("notes").select("*");
+          if (data) {
+            data.forEach((item) => renderReceipt(item.id, item, true));
+            setTimeout(focusAllReceipts, 500);
+          }
         }
       };
 
-      // 4. 云端同步
       async function saveToCloud(el) {
         const payload = {
           note_id: el.querySelector(".receipt-header span").innerText,
@@ -423,7 +417,6 @@
         }
       }
 
-      // 5. 渲染与打印逻辑
       function renderReceipt(dbId, data, isInit = false) {
         const receipt = document.createElement("div");
         receipt.className = "receipt";
@@ -443,7 +436,6 @@
           <div class="receipt-footer"><span>ID:${data.note_id}</span><span>${data.date_str}</span></div>
         `;
         viewport.appendChild(receipt);
-
         const contentEl = receipt.querySelector(".receipt-content");
         if (isInit) {
           contentEl.innerText = data.content;
@@ -453,7 +445,6 @@
             saveToCloud(receipt);
           });
         }
-
         makeDraggable(receipt);
         zIndexCounter = Math.max(zIndexCounter, data.z_index);
       }
@@ -485,40 +476,32 @@
         const input = document.getElementById("inputText");
         const text = input.value.trim();
         if (!text) return;
-
         playMagicEject();
         const idStr = `PGR-${Math.floor(Math.random() * 9000 + 1000)}`;
         const dateStr = new Date().toLocaleString([], {
           hour: "2-digit",
           minute: "2-digit",
         });
-
         const x = (window.innerWidth / 2 - offsetX) / scale - 115;
         const yStart = (window.innerHeight - 200 - offsetY) / scale;
-
         const data = {
           note_id: idStr,
           content: text,
           color: paperColors[currentColorIndex].bg,
           left_pos: x + "px",
-          top_pos: yStart + "px", // 初始位置在下方
+          top_pos: yStart + "px",
           z_index: ++zIndexCounter,
           date_str: dateStr,
         };
-
         renderReceipt(null, data);
         const all = document.querySelectorAll(".receipt");
         const newEl = all[all.length - 1];
-
-        // 吐纸动画效果
         setTimeout(() => {
           newEl.style.top = yStart - 250 + "px";
         }, 50);
-
         input.value = "";
       }
 
-      // 6. 交互与对焦
       function toggleColor() {
         currentColorIndex = (currentColorIndex + 1) % paperColors.length;
         document
@@ -533,6 +516,19 @@
       function clearText() {
         document.getElementById("inputText").value = "";
         playSfx(200);
+      }
+      function applyTransform() {
+        viewport.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+      }
+      function changeZoom(d) {
+        scale = Math.min(Math.max(0.1, scale + d), 3);
+        applyTransform();
+      }
+      function resetCanvas() {
+        scale = 1;
+        offsetX = 0;
+        offsetY = 0;
+        applyTransform();
       }
 
       function focusAllReceipts() {
@@ -562,34 +558,18 @@
         setTimeout(() => (viewport.style.transition = "none"), 500);
       }
 
-      function changeZoom(d) {
-        scale = Math.min(Math.max(0.1, scale + d), 3);
-        applyTransform();
-      }
-      function resetCanvas() {
-        scale = 1;
-        offsetX = 0;
-        offsetY = 0;
-        applyTransform();
-      }
-      function applyTransform() {
-        viewport.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
-      }
-
-      function removeReceipt(btn) {
+      async function removeReceipt(btn) {
         const el = btn.closest(".receipt");
         if (el.dataset.dbId)
-          supabase.from("notes").delete().eq("id", el.dataset.dbId);
+          await supabase.from("notes").delete().eq("id", el.dataset.dbId);
         el.remove();
         playSfx(300, "sine", 0.05, 0.1);
       }
 
-      // 键盘点击声
       document.getElementById("inputText").addEventListener("input", (e) => {
         if (e.inputType !== "deleteContentBackward") playKeyClick();
       });
 
-      // 7. 拖拽与平移
       function makeDraggable(el) {
         let isDragging = false,
           startX,
@@ -628,21 +608,20 @@
         window.addEventListener("touchend", end);
       }
 
-      // 画布平移
       let isPanning = false,
-        panX,
-        panY;
+        pX,
+        pY;
       window.addEventListener("mousedown", (e) => {
         if (e.target === viewport || e.target === document.body) {
           isPanning = true;
-          panX = e.clientX - offsetX;
-          panY = e.clientY - offsetY;
+          pX = e.clientX - offsetX;
+          pY = e.clientY - offsetY;
         }
       });
       window.addEventListener("mousemove", (e) => {
         if (isPanning) {
-          offsetX = e.clientX - panX;
-          offsetY = e.clientY - panY;
+          offsetX = e.clientX - pX;
+          offsetY = e.clientY - pY;
           applyTransform();
         }
       });
