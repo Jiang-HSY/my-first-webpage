@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
-    <title>云便签 - 全功能版</title>
+    <title>云便签 - 终极修复版</title>
     <link
       href="https://fonts.loli.net/css2?family=VT323&family=Space+Mono:wght@400;700&display=swap"
       rel="stylesheet"
@@ -334,7 +334,7 @@
       const SB_KEY = "sb_publishable__FBQPQmrAdcZkixiLgA-xw_j50DyJ8q";
       const MY_SECRET_CODE = "123456";
 
-      let supabase,
+      let sbClient,
         viewport,
         currentColorIndex = 0,
         scale = 1,
@@ -381,10 +381,11 @@
           return;
         }
         viewport = document.getElementById("viewport");
-        // 等待 SDK 加载后初始化
+
+        // 修复初始化逻辑
         if (typeof window.supabase !== "undefined") {
-          supabase = window.supabase.createClient(SB_URL, SB_KEY);
-          const { data, error } = await supabase.from("notes").select("*");
+          sbClient = window.supabase.createClient(SB_URL, SB_KEY);
+          const { data, error } = await sbClient.from("notes").select("*");
           if (data) {
             data.forEach((item) => renderReceipt(item.id, item, true));
             setTimeout(focusAllReceipts, 500);
@@ -404,12 +405,12 @@
             .innerText,
         };
         if (el.dataset.dbId) {
-          await supabase
+          await sbClient
             .from("notes")
             .update(payload)
             .eq("id", el.dataset.dbId);
         } else {
-          const { data } = await supabase
+          const { data } = await sbClient
             .from("notes")
             .insert([payload])
             .select();
@@ -561,7 +562,7 @@
       async function removeReceipt(btn) {
         const el = btn.closest(".receipt");
         if (el.dataset.dbId)
-          await supabase.from("notes").delete().eq("id", el.dataset.dbId);
+          await sbClient.from("notes").delete().eq("id", el.dataset.dbId);
         el.remove();
         playSfx(300, "sine", 0.05, 0.1);
       }
