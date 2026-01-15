@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
-    <title>云便签 - 终极修复版</title>
+    <title>云便签 - 全功能增强版</title>
     <link
       href="https://fonts.loli.net/css2?family=VT323&family=Space+Mono:wght@400;700&display=swap"
       rel="stylesheet"
@@ -35,7 +35,10 @@
         overflow: hidden;
         font-family: "Space Mono", monospace;
         user-select: none;
+        touch-action: none;
       }
+
+      /* 画布层 */
       #viewport {
         position: absolute;
         top: 0;
@@ -45,6 +48,11 @@
         transform-origin: 0 0;
         cursor: grab;
       }
+      #viewport:active {
+        cursor: grabbing;
+      }
+
+      /* 固定 UI 层 */
       .fixed-ui {
         position: fixed;
         top: 0;
@@ -92,6 +100,7 @@
         box-sizing: border-box;
         padding: 8px;
       }
+
       .controls {
         display: flex;
         justify-content: space-between;
@@ -108,6 +117,7 @@
         color: #fff;
         cursor: pointer;
         pointer-events: auto;
+        font-size: 18px;
       }
       .print-btn {
         background: var(--accent-red);
@@ -120,12 +130,14 @@
         cursor: pointer;
         pointer-events: auto;
       }
+
+      /* 纸条样式 */
       .receipt {
         position: absolute;
         width: 230px;
         background: var(--this-paper-color);
         padding: 12px 18px;
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.06);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
         z-index: 50;
         transition: top 0.8s cubic-bezier(0.2, 0.8, 0.2, 1.05);
         clip-path: polygon(
@@ -173,6 +185,7 @@
           100% calc(100% - 4px),
           0% calc(100% - 4px)
         );
+        pointer-events: auto;
       }
       .receipt-header {
         display: flex;
@@ -185,7 +198,6 @@
       .close-btn {
         cursor: pointer;
         font-size: 20px;
-        pointer-events: auto;
       }
       .receipt-content {
         font-weight: 700;
@@ -193,6 +205,7 @@
         font-size: 14px;
         white-space: pre-wrap;
         margin: 10px 0;
+        min-height: 20px;
       }
       .cursor {
         display: inline-block;
@@ -207,6 +220,8 @@
           opacity: 0;
         }
       }
+
+      /* 缩放控制 */
       .zoom-controls {
         position: fixed;
         right: 20px;
@@ -215,22 +230,27 @@
         flex-direction: column;
         gap: 10px;
         pointer-events: auto;
+        z-index: 3000;
       }
       .zoom-btn {
-        width: 45px;
-        height: 45px;
+        width: 50px;
+        height: 50px;
         background: white;
-        border-radius: 10px;
+        border-radius: 12px;
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        border: 1px solid #eee;
+        font-weight: bold;
+        color: #444;
       }
     </style>
   </head>
   <body>
     <div id="viewport"></div>
+
     <div class="fixed-ui">
       <div class="pager-container">
         <div class="pager-body">
@@ -238,7 +258,7 @@
             <textarea
               id="inputText"
               class="lcd-screen"
-              placeholder="TYPE..."
+              placeholder="TYPE MESSAGE..."
             ></textarea>
           </div>
           <div class="controls">
@@ -250,10 +270,12 @@
           </div>
         </div>
       </div>
+
       <div class="zoom-controls">
         <div class="zoom-btn" onclick="changeZoom(0.1)">＋</div>
         <div class="zoom-btn" onclick="changeZoom(-0.1)">－</div>
         <div class="zoom-btn" onclick="focusAllReceipts()">ALL</div>
+        <div class="zoom-btn" onclick="resetCanvas()">↺</div>
       </div>
     </div>
 
@@ -267,11 +289,16 @@
         offsetY = 0,
         zIndexCounter = 100,
         currentColorIndex = 0;
+
+      // 1. 七种颜色配置
       const paperColors = [
-        { bg: "#ffffff", p: "#7dff7d" },
-        { bg: "#fff9c4", p: "#fff9c4" },
-        { bg: "#c8e6c9", p: "#c8e6c9" },
-        { bg: "#f8bbd0", p: "#f8bbd0" },
+        { bg: "#ffffff", p: "#7dff7d" }, // 白
+        { bg: "#fff9c4", p: "#fff9c4" }, // 黄
+        { bg: "#c8e6c9", p: "#c8e6c9" }, // 绿
+        { bg: "#f8bbd0", p: "#f8bbd0" }, // 粉
+        { bg: "#e1f5fe", p: "#e1f5fe" }, // 蓝
+        { bg: "#ede7f6", p: "#ede7f6" }, // 紫
+        { bg: "#ffe0b2", p: "#ffe0b2" }, // 橙
       ];
 
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -296,17 +323,15 @@
           const { data } = await sb.from("notes").select("*");
           if (data) data.forEach((item) => renderReceipt(item.id, item, true));
         } catch (e) {
-          console.error("初始化失败:", e);
+          console.error(e);
         }
+        initCanvasPan(); // 初始化画布拖拽
       }
 
-      // --- 重点优化：带锁的同步逻辑 ---
       async function saveToCloud(el) {
         if (!sb || el.dataset.saving === "true") return;
-
         const content = el.querySelector(".receipt-content").innerText.trim();
-        if (!content) return; // 内容为空不保存
-
+        if (!content) return;
         el.dataset.saving = "true";
         const payload = {
           note_id: el.querySelector(".receipt-header span").innerText,
@@ -315,30 +340,15 @@
           left_pos: el.style.left,
           top_pos: el.style.top,
           z_index: parseInt(el.style.zIndex) || 100,
-          date_str: el
-            .querySelector(".receipt-header")
-            .parentElement.querySelector("span:last-child").innerText,
+          date_str: el.querySelector("span:last-child").innerText,
         };
-
         try {
-          // 只有真实存在 ID 时才执行 PATCH
-          if (
-            el.dataset.dbId &&
-            el.dataset.dbId !== "null" &&
-            el.dataset.dbId !== "undefined"
-          ) {
+          if (el.dataset.dbId && el.dataset.dbId !== "null") {
             await sb.from("notes").update(payload).eq("id", el.dataset.dbId);
           } else {
-            // 否则执行 INSERT 并获取新 ID
-            const { data, error } = await sb
-              .from("notes")
-              .insert([payload])
-              .select();
-            if (error) throw error;
+            const { data } = await sb.from("notes").insert([payload]).select();
             if (data && data[0]) el.dataset.dbId = data[0].id;
           }
-        } catch (e) {
-          console.log("正在排队同步...");
         } finally {
           el.dataset.saving = "false";
         }
@@ -355,7 +365,6 @@
         receipt.style.left = data.left_pos;
         receipt.style.top = data.top_pos;
         receipt.style.zIndex = data.z_index || 100;
-
         if (isInit) receipt.style.transition = "none";
 
         receipt.innerHTML = `
@@ -365,18 +374,15 @@
                 <span>ID:${data.note_id}</span><span>${data.date_str}</span>
             </div>`;
         viewport.appendChild(receipt);
-
         const contentEl = receipt.querySelector(".receipt-content");
-        if (isInit) {
-          contentEl.innerText = data.content;
-        } else {
+        if (isInit) contentEl.innerText = data.content;
+        else
           typeWriter(contentEl, data.content, () => {
             receipt.style.transition = "none";
             saveToCloud(receipt);
           });
-        }
         makeDraggable(receipt);
-        zIndexCounter = Math.max(zIndexCounter, data.z_index || 100);
+        zIndexCounter = Math.max(zIndexCounter, parseInt(data.z_index) || 100);
       }
 
       function typeWriter(el, text, cb) {
@@ -414,7 +420,7 @@
           minute: "2-digit",
         });
         const x = (window.innerWidth / 2 - offsetX) / scale - 115;
-        const y = (window.innerHeight - 200 - offsetY) / scale;
+        const y = (window.innerHeight - 250 - offsetY) / scale;
 
         renderReceipt(null, {
           note_id: id,
@@ -429,11 +435,41 @@
         const all = document.querySelectorAll(".receipt");
         const newEl = all[all.length - 1];
         setTimeout(() => {
-          newEl.style.top = y - 250 + "px";
+          newEl.style.top = y - 280 + "px";
         }, 50);
         input.value = "";
       }
 
+      // --- 核心修复：双端画布拖拽 ---
+      function initCanvasPan() {
+        let isPanning = false,
+          startX,
+          startY;
+        const onStart = (e) => {
+          if (e.target !== viewport && e.target !== document.body) return;
+          isPanning = true;
+          const t = e.type.includes("touch") ? e.touches[0] : e;
+          startX = t.clientX - offsetX;
+          startY = t.clientY - offsetY;
+        };
+        const onMove = (e) => {
+          if (!isPanning) return;
+          const t = e.type.includes("touch") ? e.touches[0] : e;
+          offsetX = t.clientX - startX;
+          offsetY = t.clientY - startY;
+          applyTransform();
+        };
+        const onEnd = () => (isPanning = false);
+
+        window.addEventListener("mousedown", onStart);
+        window.addEventListener("mousemove", onMove);
+        window.addEventListener("mouseup", onEnd);
+        window.addEventListener("touchstart", onStart, { passive: false });
+        window.addEventListener("touchmove", onMove, { passive: false });
+        window.addEventListener("touchend", onEnd);
+      }
+
+      // --- 纸条拖拽 ---
       function makeDraggable(el) {
         let isD = false,
           sx,
@@ -442,9 +478,10 @@
           iy;
         const start = (e) => {
           if (e.target.classList.contains("close-btn")) return;
+          e.stopPropagation();
           isD = true;
           el.style.zIndex = ++zIndexCounter;
-          const t = e.type === "touchstart" ? e.touches[0] : e;
+          const t = e.type.includes("touch") ? e.touches[0] : e;
           sx = t.clientX;
           sy = t.clientY;
           ix = parseFloat(el.style.left);
@@ -452,7 +489,7 @@
         };
         const move = (e) => {
           if (!isD) return;
-          const t = e.type === "touchmove" ? e.touches[0] : e;
+          const t = e.type.includes("touch") ? e.touches[0] : e;
           el.style.left = ix + (t.clientX - sx) / scale + "px";
           el.style.top = iy + (t.clientY - sy) / scale + "px";
         };
@@ -463,10 +500,10 @@
           }
         };
         el.addEventListener("mousedown", start);
+        el.addEventListener("touchstart", start, { passive: false });
         window.addEventListener("mousemove", move);
+        window.addEventListener("touchmove", move, { passive: false });
         window.addEventListener("mouseup", end);
-        el.addEventListener("touchstart", start);
-        window.addEventListener("touchmove", move);
         window.addEventListener("touchend", end);
       }
 
@@ -477,6 +514,50 @@
         playSfx(300);
         if (dbId && dbId !== "null")
           await sb.from("notes").delete().eq("id", dbId);
+      }
+
+      // --- 视图与缩放 ---
+      function applyTransform() {
+        viewport.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+      }
+      function changeZoom(d) {
+        scale = Math.min(Math.max(0.1, scale + d), 3);
+        applyTransform();
+      }
+      function resetCanvas() {
+        scale = 1;
+        offsetX = 0;
+        offsetY = 0;
+        applyTransform();
+      }
+
+      function focusAllReceipts() {
+        const items = document.querySelectorAll(".receipt");
+        if (items.length === 0) return resetCanvas();
+        let minX = Infinity,
+          maxX = -Infinity,
+          minY = Infinity,
+          maxY = -Infinity;
+        items.forEach((el) => {
+          const x = parseFloat(el.style.left),
+            y = parseFloat(el.style.top);
+          minX = Math.min(minX, x);
+          maxX = Math.max(maxX, x + 230);
+          minY = Math.min(minY, y);
+          maxY = Math.max(maxY, y + el.offsetHeight);
+        });
+        const midX = (minX + maxX) / 2,
+          midY = (minY + maxY) / 2;
+        scale = Math.min(
+          window.innerWidth / (maxX - minX + 100),
+          window.innerHeight / (maxY - minY + 200),
+          1
+        );
+        offsetX = window.innerWidth / 2 - midX * scale;
+        offsetY = window.innerHeight / 2 - midY * scale;
+        viewport.style.transition = "all 0.6s ease";
+        applyTransform();
+        setTimeout(() => (viewport.style.transition = "none"), 600);
       }
 
       function toggleColor() {
@@ -493,22 +574,9 @@
         document.getElementById("inputText").value = "";
         playSfx(200);
       }
-      function applyTransform() {
-        viewport.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
-      }
-      function changeZoom(d) {
-        scale = Math.min(Math.max(0.1, scale + d), 3);
-        applyTransform();
-      }
-      function focusAllReceipts() {
-        scale = 1;
-        offsetX = 0;
-        offsetY = 0;
-        applyTransform();
-      }
 
       window.onload = () => {
-        const code = prompt("请输入暗号：");
+        const code = prompt("请输入访问暗号：");
         if (code === "123456") initApp();
         else alert("暗号错误");
       };
