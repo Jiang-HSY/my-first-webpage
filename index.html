@@ -6,11 +6,12 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
-    <title>云便签 - 修复版</title>
+    <title>云便签 - 终极修复版</title>
     <link
       href="https://fonts.loli.net/css2?family=VT323&family=Space+Mono:wght@400;700&display=swap"
       rel="stylesheet"
     />
+    <link rel="icon" href="data:;base64,iVBORw0KGgo=" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
       :root {
@@ -290,34 +291,54 @@
 
       async function initApp() {
         viewport = document.getElementById("viewport");
-        sb = window.supabase.createClient(SB_URL, SB_KEY);
-        const { data } = await sb.from("notes").select("*");
-        if (data) data.forEach((item) => renderReceipt(item.id, item, true));
+        try {
+          sb = window.supabase.createClient(SB_URL, SB_KEY);
+          const { data } = await sb.from("notes").select("*");
+          if (data) data.forEach((item) => renderReceipt(item.id, item, true));
+        } catch (e) {
+          console.error("初始化失败:", e);
+        }
       }
 
+      // --- 重点优化：带锁的同步逻辑 ---
       async function saveToCloud(el) {
         if (!sb || el.dataset.saving === "true") return;
+
+        const content = el.querySelector(".receipt-content").innerText.trim();
+        if (!content) return; // 内容为空不保存
+
         el.dataset.saving = "true";
         const payload = {
           note_id: el.querySelector(".receipt-header span").innerText,
-          content: el.querySelector(".receipt-content").innerText,
+          content: content,
           color: el.style.getPropertyValue("--this-paper-color"),
           left_pos: el.style.left,
           top_pos: el.style.top,
           z_index: parseInt(el.style.zIndex) || 100,
           date_str: el
             .querySelector(".receipt-header")
-            .nextElementSibling.nextElementSibling.querySelector(
-              "span:last-child"
-            ).innerText,
+            .parentElement.querySelector("span:last-child").innerText,
         };
+
         try {
-          if (el.dataset.dbId && el.dataset.dbId !== "null") {
+          // 只有真实存在 ID 时才执行 PATCH
+          if (
+            el.dataset.dbId &&
+            el.dataset.dbId !== "null" &&
+            el.dataset.dbId !== "undefined"
+          ) {
             await sb.from("notes").update(payload).eq("id", el.dataset.dbId);
           } else {
-            const { data } = await sb.from("notes").insert([payload]).select();
-            if (data) el.dataset.dbId = data[0].id;
+            // 否则执行 INSERT 并获取新 ID
+            const { data, error } = await sb
+              .from("notes")
+              .insert([payload])
+              .select();
+            if (error) throw error;
+            if (data && data[0]) el.dataset.dbId = data[0].id;
           }
+        } catch (e) {
+          console.log("正在排队同步...");
         } finally {
           el.dataset.saving = "false";
         }
@@ -334,7 +355,9 @@
         receipt.style.left = data.left_pos;
         receipt.style.top = data.top_pos;
         receipt.style.zIndex = data.z_index || 100;
+
         if (isInit) receipt.style.transition = "none";
+
         receipt.innerHTML = `
             <div class="receipt-header"><span>${data.note_id}</span><span class="close-btn" onclick="removeReceipt(this)">×</span></div>
             <div class="receipt-content"></div>
@@ -342,13 +365,16 @@
                 <span>ID:${data.note_id}</span><span>${data.date_str}</span>
             </div>`;
         viewport.appendChild(receipt);
+
         const contentEl = receipt.querySelector(".receipt-content");
-        if (isInit) contentEl.innerText = data.content;
-        else
+        if (isInit) {
+          contentEl.innerText = data.content;
+        } else {
           typeWriter(contentEl, data.content, () => {
             receipt.style.transition = "none";
             saveToCloud(receipt);
           });
+        }
         makeDraggable(receipt);
         zIndexCounter = Math.max(zIndexCounter, data.z_index || 100);
       }
@@ -389,6 +415,7 @@
         });
         const x = (window.innerWidth / 2 - offsetX) / scale - 115;
         const y = (window.innerHeight - 200 - offsetY) / scale;
+
         renderReceipt(null, {
           note_id: id,
           content: text,
@@ -398,6 +425,7 @@
           z_index: ++zIndexCounter,
           date_str: date,
         });
+
         const all = document.querySelectorAll(".receipt");
         const newEl = all[all.length - 1];
         setTimeout(() => {
@@ -444,10 +472,11 @@
 
       async function removeReceipt(btn) {
         const el = btn.closest(".receipt");
-        if (el.dataset.dbId && el.dataset.dbId !== "null")
-          await sb.from("notes").delete().eq("id", el.dataset.dbId);
+        const dbId = el.dataset.dbId;
         el.remove();
         playSfx(300);
+        if (dbId && dbId !== "null")
+          await sb.from("notes").delete().eq("id", dbId);
       }
 
       function toggleColor() {
@@ -472,9 +501,6 @@
         applyTransform();
       }
       function focusAllReceipts() {
-        resetCanvas();
-      }
-      function resetCanvas() {
         scale = 1;
         offsetX = 0;
         offsetY = 0;
