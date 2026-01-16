@@ -6,8 +6,8 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
-    <title>云便签 - 极速修复版</title>
-    <!-- 修复1：使用 unpkg 源，国内访问相对稳定，或者建议下载 supabase.js 到本地引入 -->
+    <title>云便签 - 极速SVG版</title>
+    <!-- 使用 unpkg 源，确保国内加载速度 -->
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <link
       rel="icon"
@@ -21,6 +21,8 @@
         --ui-bg: #2a2a2a;
         --grid-size: 20px;
         --note-width: 320px;
+        /* 这里的 SVG 是你提供的，经过 URL 编码以便在 CSS 中使用 */
+        --sawtooth-url: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='6' viewBox='0 0 320 6' fill='none'%3E%3Cpath d='M320 0V3.34662L317.414 5.51015C316.633 6.16336 315.367 6.1632 314.586 5.51015L310 1.67331L305.414 5.51015C304.633 6.16336 303.367 6.1632 302.586 5.51015L298 1.67331L293.414 5.51015C292.633 6.16336 291.367 6.1632 290.586 5.51015L286 1.67331L281.414 5.51015C280.633 6.16336 279.367 6.1632 278.586 5.51015L274 1.67331L269.414 5.51015C268.633 6.16336 267.367 6.1632 266.586 5.51015L262 1.67331L257.414 5.51015C256.633 6.16336 255.367 6.1632 254.586 5.51015L250 1.67331L245.414 5.51015C244.633 6.16337 243.367 6.1632 242.586 5.51015L238 1.67331L233.414 5.51015C232.633 6.16337 231.367 6.1632 230.586 5.51015L226 1.67331L221.414 5.51015C220.633 6.16337 219.367 6.1632 218.586 5.51015L214 1.67331L209.414 5.51015C208.633 6.16337 207.367 6.1632 206.586 5.51015L202 1.67331L197.414 5.51015C196.633 6.16337 195.367 6.1632 194.586 5.51015L190 1.67331L185.414 5.51015C184.633 6.16337 183.367 6.1632 182.586 5.51015L178 1.67331L173.414 5.51015C172.633 6.16337 171.367 6.1632 170.586 5.51015L166 1.67331L161.414 5.51015C160.633 6.16337 159.367 6.1632 158.586 5.51015L154 1.67331L149.414 5.51015C148.633 6.16337 147.367 6.1632 146.586 5.51015L142 1.67331L137.414 5.51015C136.633 6.16337 135.367 6.1632 134.586 5.51015L130 1.67331L125.414 5.51015C124.633 6.16337 123.367 6.1632 122.586 5.51015L118 1.67331L113.414 5.51015C112.633 6.16337 111.367 6.1632 110.586 5.51015L106 1.67331L101.414 5.51015C100.633 6.16337 99.367 6.1632 98.5859 5.51015L94 1.67331L89.4141 5.51015C88.6332 6.16337 87.367 6.1632 86.5859 5.51015L82 1.67331L77.4141 5.51015C76.6332 6.16337 75.367 6.1632 74.5859 5.51015L70 1.67331L65.4141 5.51015C64.6332 6.16337 63.367 6.1632 62.5859 5.51015L58 1.67331L53.4141 5.51015C52.6332 6.16337 51.367 6.1632 50.5859 5.51015L46 1.67331L41.4141 5.51015C40.6332 6.16337 39.367 6.1632 38.5859 5.51015L34 1.67331L29.4141 5.51015C28.6332 6.16337 27.367 6.1632 26.5859 5.51015L22 1.67331L17.4141 5.51015C16.6332 6.16337 15.367 6.1632 14.5859 5.51015L10 1.67331L5.41406 5.51015C4.63315 6.16337 3.36697 6.1632 2.58594 5.51015L0 3.34662V0H320Z' fill='white'/%3E%3C/svg%3E");
       }
       body,
       html {
@@ -44,7 +46,6 @@
         height: 100%;
         transform-origin: 0 0;
         cursor: grab;
-        /* 修复2：开启 GPU 加速，减少整个画布移动时的卡顿 */
         will-change: transform;
       }
       .fixed-ui {
@@ -142,113 +143,62 @@
         cursor: pointer;
         pointer-events: auto;
       }
+
+      /* --- 便签核心样式修改 --- */
       .receipt {
         position: absolute;
         width: var(--note-width);
-        background: var(--this-paper-color);
-        padding: 16px 20px;
+        background: var(--this-paper-color); /* 只有中间是实心背景 */
+        padding: 10px 20px; /* 调整内边距，因为上下现在是伪元素 */
         box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
         z-index: 50;
-        transition: transform 0.2s; /* 注意：不要 transition left/top，否则拖动会延迟 */
+        transition: transform 0.2s;
         pointer-events: auto;
         box-sizing: border-box;
-        /* 复杂的锯齿边缘 */
-        clip-path: polygon(
-          0% 4px,
-          2.5% 0,
-          5% 4px,
-          7.5% 0,
-          10% 4px,
-          12.5% 0,
-          15% 4px,
-          17.5% 0,
-          20% 4px,
-          22.5% 0,
-          25% 4px,
-          27.5% 0,
-          30% 4px,
-          32.5% 0,
-          35% 4px,
-          37.5% 0,
-          40% 4px,
-          42.5% 0,
-          45% 4px,
-          47.5% 0,
-          50% 4px,
-          52.5% 0,
-          55% 4px,
-          57.5% 0,
-          60% 4px,
-          62.5% 0,
-          65% 4px,
-          67.5% 0,
-          70% 4px,
-          72.5% 0,
-          75% 4px,
-          77.5% 0,
-          80% 4px,
-          82.5% 0,
-          85% 4px,
-          87.5% 0,
-          90% 4px,
-          92.5% 0,
-          95% 4px,
-          97.5% 0,
-          100% 4px,
-          100% calc(100% - 4px),
-          97.5% 100%,
-          95% calc(100% - 4px),
-          92.5% 100%,
-          90% calc(100% - 4px),
-          87.5% 100%,
-          85% calc(100% - 4px),
-          82.5% 100%,
-          80% calc(100% - 4px),
-          77.5% 100%,
-          75% calc(100% - 4px),
-          72.5% 100%,
-          70% calc(100% - 4px),
-          67.5% 100%,
-          65% calc(100% - 4px),
-          62.5% 100%,
-          60% calc(100% - 4px),
-          57.5% 100%,
-          55% calc(100% - 4px),
-          52.5% 100%,
-          50% calc(100% - 4px),
-          47.5% 100%,
-          45% calc(100% - 4px),
-          42.5% 100%,
-          40% calc(100% - 4px),
-          37.5% 100%,
-          35% calc(100% - 4px),
-          32.5% 100%,
-          30% calc(100% - 4px),
-          27.5% 100%,
-          25% calc(100% - 4px),
-          22.5% 100%,
-          20% calc(100% - 4px),
-          17.5% 100%,
-          15% calc(100% - 4px),
-          12.5% 100%,
-          10% calc(100% - 4px),
-          7.5% 100%,
-          5% calc(100% - 4px),
-          2.5% 100%,
-          0% calc(100% - 4px)
-        );
+        /* 移除 clip-path，解决卡顿的核心 */
+        clip-path: none !important;
+        will-change: left, top;
       }
-      /* 修复3：拖动时的性能优化 */
+
+      /* 顶部锯齿 */
+      .receipt::before {
+        content: "";
+        position: absolute;
+        top: -6px; /* SVG高度 */
+        left: 0;
+        width: 100%;
+        height: 6px;
+        background-color: var(--this-paper-color);
+        /* 使用遮罩技术，让锯齿自动跟随便签颜色 */
+        -webkit-mask-image: var(--sawtooth-url);
+        mask-image: var(--sawtooth-url);
+        /* 翻转用于顶部 */
+        transform: scaleY(-1);
+        transform-origin: bottom;
+      }
+
+      /* 底部锯齿 */
+      .receipt::after {
+        content: "";
+        position: absolute;
+        bottom: -6px; /* SVG高度 */
+        left: 0;
+        width: 100%;
+        height: 6px;
+        background-color: var(--this-paper-color);
+        -webkit-mask-image: var(--sawtooth-url);
+        mask-image: var(--sawtooth-url);
+        /* 底部不需要翻转 */
+      }
+
       .receipt.dragging {
         scale: 1.02;
         box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
         z-index: 9999 !important;
-        /* 关键：拖动时暂时移除复杂的 clip-path，性能提升 10 倍 */
-        clip-path: none !important;
-        border-radius: 4px; /* 给个圆角作为替代 */
-        will-change: left, top; /* 告诉浏览器这里会变 */
         cursor: grabbing;
+        /* 以前这里需要移除 clip-path，现在不需要了，因为根本没有 clip-path */
       }
+
       .receipt.hidden-note {
         display: none;
       }
@@ -342,7 +292,7 @@
 
     <script>
       const SB_URL = "https://wuronegjubkyevlviswt.supabase.co";
-      const SB_KEY = "sb_publishable__FBQPQmrAdcZkixiLgA-xw_j50DyJ8q"; // 注意：这是示例Key，请确保有效
+      const SB_KEY = "sb_publishable__FBQPQmrAdcZkixiLgA-xw_j50DyJ8q"; // 请确保这是有效的 Key
       let sb = null,
         viewport,
         scale = 1,
@@ -367,12 +317,10 @@
       }
       function playSfx(f, t = "sine", v = 0.02, d = 0.1) {
         initAudio();
-        // 修复4：处理 AudioContext 状态，避免报错
         if (audioCtx && audioCtx.state === "suspended") {
-          audioCtx.resume().catch((e) => console.log("Audio resume failed"));
+          audioCtx.resume().catch((e) => {});
         }
         if (!audioCtx) return;
-
         try {
           const o = audioCtx.createOscillator(),
             g = audioCtx.createGain();
@@ -390,12 +338,9 @@
       async function initApp() {
         viewport = document.getElementById("viewport");
 
-        // 修复5：安全地初始化 Supabase，防止报错阻塞程序
         try {
           if (window.supabase) {
             sb = window.supabase.createClient(SB_URL, SB_KEY);
-          } else {
-            console.warn("Supabase library not loaded (Offline Mode)");
           }
         } catch (e) {
           console.error("Supabase init error:", e);
@@ -443,7 +388,6 @@
                     const el = document.querySelector(
                       `[data-db-id="${payload.new.id}"]`
                     );
-                    // 仅当用户未在操作时才更新位置，防止“打架”
                     if (
                       el &&
                       el.dataset.saving !== "true" &&
@@ -497,7 +441,7 @@
             await sb.from("notes").update(payload).eq("id", dbId);
           }
         } catch (e) {
-          console.log("Save error:", e);
+          console.log("Save error", e);
         } finally {
           el.dataset.saving = "false";
         }
@@ -584,7 +528,7 @@
         const move = (e) => {
           if (!isD) return;
           const t = e.type.includes("touch") ? e.touches[0] : e;
-          // 纯计算，不再做其他查询，保持极速
+          // GPU加速渲染，无DOM查询
           el.style.left = ix + (t.clientX - sx) / scale + "px";
           el.style.top = iy + (t.clientY - sy) / scale + "px";
         };
@@ -592,7 +536,6 @@
           if (isD) {
             isD = false;
             el.classList.remove("dragging");
-            // 对齐逻辑只在释放时执行，不占用拖动性能
             let tx = parseFloat(el.style.left),
               ty = parseFloat(el.style.top);
             const grid = 20,
@@ -818,14 +761,16 @@
       }
 
       window.onload = () => {
-        // 为了方便测试，我暂时注释掉了暗号，如果需要请取消注释
-        // const code = prompt("请输入暗号：");
-        // if (code === "123456") {
-        initAudio();
-        initApp();
-        // } else {
-        //   alert("暗号错误");
-        // }
+        // 暗号功能已启用
+        const code = prompt("请输入暗号：");
+        if (code === "123456") {
+          initAudio();
+          initApp();
+        } else {
+          alert("暗号错误");
+          document.body.innerHTML =
+            "<div style='color:#333; text-align:center; padding-top:100px;'>ACCESS DENIED</div>";
+        }
       };
     </script>
   </body>
