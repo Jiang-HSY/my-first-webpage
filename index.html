@@ -720,6 +720,30 @@
         setTimeout(() => (viewport.style.transition = "none"), 600);
       }
 
+      // 居中并 100% 放大显示指定的便签
+      function focusSingleReceipt(el) {
+        // 160 是便签宽度 320px 的一半
+        const x = parseFloat(el.style.left) + 160;
+        const y = parseFloat(el.style.top) + el.offsetHeight / 2;
+
+        scale = 1; // 设置为 100% 比例
+        // 计算偏移量，使便签中心点位于屏幕中心
+        offsetX = window.innerWidth / 2 - x * scale;
+        offsetY = window.innerHeight / 2 - y * scale;
+
+        // 增加平滑过渡动画
+        viewport.style.transition = "all 0.6s ease";
+        applyTransform();
+
+        // 动画结束后移除 transition，防止后续拖动卡顿
+        setTimeout(() => {
+          viewport.style.transition = "none";
+        }, 600);
+
+        // 播放一个清脆的音效反馈
+        playSfx(700, "sine", 0.01, 0.3);
+      }
+
       function resetCanvasToCenter() {
         focusAllReceipts(false);
       }
