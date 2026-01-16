@@ -6,15 +6,8 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
-    <title>云便签 - 终极修复版</title>
-    <link
-      rel="icon"
-      type="image/svg+xml"
-      href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='40' height='46' viewBox='0 0 40 46' fill='none'><path d='M0 14C0 8.47715 4.47715 4 10 4H23.3431C24.404 4 25.4214 4.42143 26.1716 5.17157L34.8284 13.8284C35.5786 14.5786 36 15.596 36 16.6569V36C36 41.5228 31.5228 46 26 46H10C4.47715 46 0 41.5228 0 36V14Z' fill='%232B92FF'/><path d='M4 8C4 3.58172 7.58172 0 12 0H27.3431C28.404 0 29.4214 0.421427 30.1716 1.17157L38.8284 9.82843C39.5786 10.5786 40 11.596 40 12.6569V34C40 38.4183 36.4183 42 32 42H12C7.58172 42 4 38.4183 4 34V8Z' fill='%2352D45F'/><rect x='11' y='20' width='16' height='4' rx='2' fill='white'/><rect x='11' y='30' width='22' height='4' rx='2' fill='white'/></svg>"
-    />
-
+    <title>云便签 - 稳定版</title>
     <script src="https://lf26-cdn-tos.bytecdntp.com/cdn/expire-1-M/supabase/2.39.7/supabase-js.js"></script>
-
     <style>
       :root {
         --pager-green: #a3d95b;
@@ -302,8 +295,8 @@
       <div class="pager-container">
         <div class="pager-body">
           <div class="search-bar">
-            <span style="color: #7dff7d; margin-right: 5px">🔍</span>
-            <input
+            <span style="color: #7dff7d; margin-right: 5px">🔍</span
+            ><input
               type="text"
               id="searchInp"
               placeholder="SEARCH NOTES..."
@@ -335,7 +328,6 @@
     </div>
 
     <script>
-      // 核心配置
       const SB_URL = "https://wuronegjubkyevlviswt.supabase.co";
       const SB_KEY = "sb_publishable__FBQPQmrAdcZkixiLgA-xw_j50DyJ8q";
       let sb,
@@ -355,32 +347,15 @@
         { bg: "#ffe0b2", p: "#ffe0b2" },
       ];
 
-      let audioCtx;
-      function initAudio() {
-        if (!audioCtx)
-          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      }
-      function playSfx(f, t = "sine", v = 0.02, d = 0.1) {
-        initAudio();
-        if (audioCtx.state === "suspended") audioCtx.resume();
-        const o = audioCtx.createOscillator(),
-          g = audioCtx.createGain();
-        o.type = t;
-        o.frequency.setValueAtTime(f, audioCtx.currentTime);
-        g.gain.setValueAtTime(v, audioCtx.currentTime);
-        g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + d);
-        o.connect(g);
-        g.connect(audioCtx.destination);
-        o.start();
-        o.stop(audioCtx.currentTime + d);
-      }
-
+      // 核心加载逻辑：国内极速加载
       async function initApp() {
         viewport = document.getElementById("viewport");
 
-        // 关键修复：增加重试机制和加载判定
+        // 判定 Supabase 是否真的加载成功
         if (typeof window.supabase === "undefined") {
-          console.error("数据库组件加载失败");
+          console.warn(
+            "Supabase 加载失败，由于 CDN 无法连接，请尝试切换网络或联系开发人员。"
+          );
           initCanvasPan();
           return;
         }
@@ -398,36 +373,68 @@
             setTimeout(() => focusAllReceipts(true), 300);
           }
 
-          // 实时订阅
+          // 开启实时同步
           sb.channel("db-changes")
             .on(
               "postgres_changes",
               { event: "*", schema: "public", table: "notes" },
               (p) => {
-                if (p.eventType === "INSERT")
+                if (
+                  p.eventType === "INSERT" &&
+                  !document.querySelector(`[data-note-id="${p.new.note_id}"]`)
+                ) {
                   renderReceipt(p.new.id, p.new, true);
+                }
                 if (p.eventType === "DELETE")
                   document
                     .querySelector(`[data-db-id="${p.old.id}"]`)
                     ?.remove();
-                if (p.eventType === "UPDATE") {
-                  const el = document.querySelector(
-                    `[data-db-id="${p.new.id}"]`
-                  );
-                  if (el && el.dataset.saving !== "true") {
-                    el.style.left = p.new.left_pos;
-                    el.style.top = p.new.top_pos;
-                    el.querySelector(".receipt-content").innerText =
-                      p.new.content;
-                  }
-                }
               }
             )
             .subscribe();
         } catch (e) {
-          console.warn("进入离线模式:", e.message);
+          console.error("数据库初始化错误:", e.message);
         }
         initCanvasPan();
+      }
+
+      // 便签渲染与打印
+      function renderReceipt(dbId, data, isInit = false) {
+        if (document.querySelector(`[data-note-id="${data.note_id}"]`)) return;
+        const r = document.createElement("div");
+        r.className = "receipt";
+        r.dataset.dbId = dbId;
+        r.dataset.noteId = data.note_id;
+        r.style.setProperty("--this-paper-color", data.color || "#ffffff");
+        r.style.left = data.left_pos;
+        r.style.top = data.top_pos;
+        r.style.zIndex = data.z_index || 100;
+
+        r.innerHTML = `
+                <div class="receipt-header"><span>${
+                  data.note_id
+                }</span><span class="close-btn" onclick="removeReceipt(this)">×</span></div>
+                <div class="receipt-content" contenteditable="true" spellcheck="false">${
+                  isInit ? data.content : ""
+                }</div>
+                <div style="display:flex;justify-content:space-between;font-size:8px;color:rgba(0,0,0,0.2);border-top:1px dashed rgba(0,0,0,0.08);padding-top:10px;pointer-events:none;">
+                    <span>ID:${data.note_id}</span><span class="footer-date">${
+          data.date_str
+        }</span>
+                </div>`;
+
+        viewport.appendChild(r);
+        const contentEl = r.querySelector(".receipt-content");
+        if (!isInit) {
+          r.style.transition = "top 0.8s ease-out";
+          r.style.top = data.target_y;
+          typeWriter(contentEl, data.content, () => {
+            r.style.transition = "none";
+            saveToCloud(r);
+          });
+        }
+        contentEl.addEventListener("blur", () => saveToCloud(r));
+        makeDraggable(r);
       }
 
       async function saveToCloud(el) {
@@ -456,45 +463,37 @@
         }
       }
 
-      function renderReceipt(dbId, data, isInit = false) {
-        if (document.querySelector(`[data-note-id="${data.note_id}"]`)) return;
-        const receipt = document.createElement("div");
-        receipt.className = "receipt";
-        receipt.dataset.dbId = dbId;
-        receipt.dataset.noteId = data.note_id;
-        receipt.style.setProperty(
-          "--this-paper-color",
-          data.color || "#ffffff"
-        );
-        receipt.style.left = data.left_pos;
-        receipt.style.top = data.top_pos;
-        receipt.style.zIndex = data.z_index || 100;
-
-        receipt.innerHTML = `
-            <div class="receipt-header"><span>${
-              data.note_id
-            }</span><span class="close-btn" onclick="removeReceipt(this)">×</span></div>
-            <div class="receipt-content" contenteditable="true" spellcheck="false">${
-              isInit ? data.content : ""
-            }</div>
-            <div style="display:flex; justify-content:space-between; font-size:8px; color:rgba(0,0,0,0.2); border-top:1px dashed rgba(0,0,0,0.08); padding-top:10px; pointer-events:none;">
-                <span>ID:${data.note_id}</span><span class="footer-date">${
-          data.date_str
-        }</span>
-            </div>`;
-
-        viewport.appendChild(receipt);
-        const contentEl = receipt.querySelector(".receipt-content");
-        if (!isInit) {
-          receipt.style.transition = "top 0.8s cubic-bezier(0.22, 1, 0.36, 1)";
-          receipt.style.top = data.target_y;
-          typeWriter(contentEl, data.content, () => {
-            receipt.style.transition = "none";
-            saveToCloud(receipt);
-          });
-        }
-        contentEl.addEventListener("blur", () => saveToCloud(receipt));
-        makeDraggable(receipt);
+      function printReceipt() {
+        const input = document.getElementById("inputText");
+        const text = input.value.trim();
+        if (!text) return;
+        const nid = `PGR-${Math.floor(Math.random() * 9000 + 1000)}`;
+        // 使用你最喜欢的日期格式
+        const date = new Date()
+          .toLocaleString("zh-CN", {
+            year: "numeric",
+            month: "numeric",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            hour12: false,
+          })
+          .replace(/\//g, "/");
+        const x = (window.innerWidth / 2 - offsetX) / scale - 160;
+        const startY = (window.innerHeight - 180 - offsetY) / scale;
+        const targetY = (window.innerHeight / 2 - 100 - offsetY) / scale;
+        renderReceipt(null, {
+          note_id: nid,
+          content: text,
+          color: paperColors[currentColorIndex].bg,
+          left_pos: x + "px",
+          top_pos: startY + "px",
+          target_y: targetY + "px",
+          z_index: ++zIndexCounter,
+          date_str: date,
+        });
+        input.value = "";
       }
 
       function makeDraggable(el) {
@@ -527,14 +526,11 @@
           el.style.top = iy + (t.clientY - sy) / scale + "px";
         };
         const end = () => {
-          if (!isD) return;
-          isD = false;
-          el.classList.remove("dragging");
-          const tx = Math.round(parseFloat(el.style.left) / 20) * 20;
-          const ty = Math.round(parseFloat(el.style.top) / 20) * 20;
-          el.style.left = tx + "px";
-          el.style.top = ty + "px";
-          setTimeout(() => saveToCloud(el), 0);
+          if (isD) {
+            isD = false;
+            el.classList.remove("dragging");
+            saveToCloud(el);
+          }
         };
         el.addEventListener("mousedown", start);
         el.addEventListener("touchstart", start, { passive: false });
@@ -542,41 +538,6 @@
         window.addEventListener("touchmove", move, { passive: false });
         window.addEventListener("mouseup", end);
         window.addEventListener("touchend", end);
-      }
-
-      function printReceipt() {
-        const input = document.getElementById("inputText");
-        const text = input.value.trim();
-        if (!text) return;
-        const nid = `PGR-${Math.floor(Math.random() * 9000 + 1000)}`;
-        // 保留你最新的长日期格式逻辑
-        const date = new Date()
-          .toLocaleString("zh-CN", {
-            year: "numeric",
-            month: "numeric",
-            day: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit",
-            hour12: false,
-          })
-          .replace(/\//g, "/");
-        const x = (window.innerWidth / 2 - offsetX) / scale - 160;
-        const startY = (window.innerHeight - 180 - offsetY) / scale;
-        const targetY = (window.innerHeight / 2 - 100 - offsetY) / scale;
-
-        renderReceipt(null, {
-          note_id: nid,
-          content: text,
-          color: paperColors[currentColorIndex].bg,
-          left_pos: x + "px",
-          top_pos: startY + "px",
-          target_y: targetY + "px",
-          z_index: ++zIndexCounter,
-          date_str: date,
-        });
-        input.value = "";
-        playSfx(800, "sawtooth", 0.03, 0.4);
       }
 
       function typeWriter(el, text, cb) {
@@ -697,7 +658,6 @@
       window.onload = () => {
         const code = prompt("请输入暗号：");
         if (code === "123456") {
-          initAudio();
           initApp();
         } else {
           alert("暗号错误");
