@@ -6,8 +6,9 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
-    <title>云便签 - 稳定版</title>
+    <title>云便签 - 稳定同步版</title>
     <script src="https://lf26-cdn-tos.bytecdntp.com/cdn/expire-1-M/supabase/2.39.7/supabase-js.js"></script>
+
     <style>
       :root {
         --pager-green: #a3d95b;
@@ -347,15 +348,12 @@
         { bg: "#ffe0b2", p: "#ffe0b2" },
       ];
 
-      // 核心加载逻辑：国内极速加载
       async function initApp() {
         viewport = document.getElementById("viewport");
 
-        // 判定 Supabase 是否真的加载成功
+        // 实时检查库是否加载
         if (typeof window.supabase === "undefined") {
-          console.warn(
-            "Supabase 加载失败，由于 CDN 无法连接，请尝试切换网络或联系开发人员。"
-          );
+          alert("⚠️ 数据库脚本加载失败！请尝试硬刷新(Ctrl+F5)或检查网络。");
           initCanvasPan();
           return;
         }
@@ -373,18 +371,14 @@
             setTimeout(() => focusAllReceipts(true), 300);
           }
 
-          // 开启实时同步
+          // 实时同步订阅
           sb.channel("db-changes")
             .on(
               "postgres_changes",
               { event: "*", schema: "public", table: "notes" },
               (p) => {
-                if (
-                  p.eventType === "INSERT" &&
-                  !document.querySelector(`[data-note-id="${p.new.note_id}"]`)
-                ) {
+                if (p.eventType === "INSERT")
                   renderReceipt(p.new.id, p.new, true);
-                }
                 if (p.eventType === "DELETE")
                   document
                     .querySelector(`[data-db-id="${p.old.id}"]`)
@@ -393,12 +387,38 @@
             )
             .subscribe();
         } catch (e) {
-          console.error("数据库初始化错误:", e.message);
+          console.warn("同步受限:", e.message);
         }
         initCanvasPan();
       }
 
-      // 便签渲染与打印
+      async function saveToCloud(el) {
+        if (!sb || el.dataset.saving === "true") return;
+        el.dataset.saving = "true";
+        const payload = {
+          note_id: el.dataset.noteId,
+          content: el.querySelector(".receipt-content").innerText.trim(),
+          color: el.style.getPropertyValue("--this-paper-color"),
+          left_pos: el.style.left,
+          top_pos: el.style.top,
+          z_index: parseInt(el.style.zIndex) || 100,
+          date_str: el.querySelector(".footer-date").innerText,
+        };
+        try {
+          const dbId = el.dataset.dbId;
+          if (!dbId || dbId === "null") {
+            const { data } = await sb.from("notes").insert([payload]).select();
+            if (data) el.dataset.dbId = data[0].id;
+          } else {
+            await sb.from("notes").update(payload).eq("id", dbId);
+          }
+        } catch (e) {
+          console.error("保存失败");
+        } finally {
+          el.dataset.saving = "false";
+        }
+      }
+
       function renderReceipt(dbId, data, isInit = false) {
         if (document.querySelector(`[data-note-id="${data.note_id}"]`)) return;
         const r = document.createElement("div");
@@ -437,38 +457,11 @@
         makeDraggable(r);
       }
 
-      async function saveToCloud(el) {
-        if (!sb || el.dataset.saving === "true") return;
-        el.dataset.saving = "true";
-        const payload = {
-          note_id: el.dataset.noteId,
-          content: el.querySelector(".receipt-content").innerText.trim(),
-          color: el.style.getPropertyValue("--this-paper-color"),
-          left_pos: el.style.left,
-          top_pos: el.style.top,
-          z_index: parseInt(el.style.zIndex) || 100,
-          date_str: el.querySelector(".footer-date").innerText,
-        };
-        try {
-          const dbId = el.dataset.dbId;
-          if (!dbId || dbId === "null") {
-            const { data } = await sb.from("notes").insert([payload]).select();
-            if (data) el.dataset.dbId = data[0].id;
-          } else {
-            await sb.from("notes").update(payload).eq("id", dbId);
-          }
-        } catch (e) {
-        } finally {
-          el.dataset.saving = "false";
-        }
-      }
-
       function printReceipt() {
         const input = document.getElementById("inputText");
         const text = input.value.trim();
         if (!text) return;
         const nid = `PGR-${Math.floor(Math.random() * 9000 + 1000)}`;
-        // 使用你最喜欢的日期格式
         const date = new Date()
           .toLocaleString("zh-CN", {
             year: "numeric",
