@@ -12,7 +12,9 @@
       type="image/svg+xml"
       href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='40' height='46' viewBox='0 0 40 46' fill='none'><path d='M0 14C0 8.47715 4.47715 4 10 4H23.3431C24.404 4 25.4214 4.42143 26.1716 5.17157L34.8284 13.8284C35.5786 14.5786 36 15.596 36 16.6569V36C36 41.5228 31.5228 46 26 46H10C4.47715 46 0 41.5228 0 36V14Z' fill='%232B92FF'/><path d='M4 8C4 3.58172 7.58172 0 12 0H27.3431C28.404 0 29.4214 0.421427 30.1716 1.17157L38.8284 9.82843C39.5786 10.5786 40 11.596 40 12.6569V34C40 38.4183 36.4183 42 32 42H12C7.58172 42 4 38.4183 4 34V8Z' fill='%2352D45F'/><rect x='11' y='20' width='16' height='4' rx='2' fill='white'/><rect x='11' y='30' width='22' height='4' rx='2' fill='white'/></svg>"
     />
+
     <script src="https://lib.baomitu.com/supabase/2.39.7/supabase-js.js"></script>
+
     <style>
       :root {
         --pager-green: #a3d95b;
@@ -35,7 +37,7 @@
         user-select: none;
         touch-action: none;
         overscroll-behavior: none;
-      } /* 性能增强：禁止浏览器默认溢出行为 */
+      }
       #viewport {
         position: absolute;
         top: 0;
@@ -141,7 +143,7 @@
         pointer-events: auto;
       }
 
-      /* 保留你的 2px 细锯齿样式 */
+      /* 保留你的细锯齿样式 */
       .receipt {
         position: absolute;
         width: var(--note-width);
@@ -153,88 +155,88 @@
         pointer-events: auto;
         box-sizing: border-box;
         clip-path: polygon(
-          0% 2px,
+          0% 4px,
           2.5% 0,
-          5% 2px,
+          5% 4px,
           7.5% 0,
-          10% 2px,
+          10% 4px,
           12.5% 0,
-          15% 2px,
+          15% 4px,
           17.5% 0,
-          20% 2px,
+          20% 4px,
           22.5% 0,
-          25% 2px,
+          25% 4px,
           27.5% 0,
-          30% 2px,
+          30% 4px,
           32.5% 0,
-          35% 2px,
+          35% 4px,
           37.5% 0,
-          40% 2px,
+          40% 4px,
           42.5% 0,
-          45% 2px,
+          45% 4px,
           47.5% 0,
-          50% 2px,
+          50% 4px,
           52.5% 0,
-          55% 2px,
+          55% 4px,
           57.5% 0,
-          60% 2px,
+          60% 4px,
           62.5% 0,
-          65% 2px,
+          65% 4px,
           67.5% 0,
-          70% 2px,
+          70% 4px,
           72.5% 0,
-          75% 2px,
+          75% 4px,
           77.5% 0,
-          80% 2px,
+          80% 4px,
           82.5% 0,
-          85% 2px,
+          85% 4px,
           87.5% 0,
-          90% 2px,
+          90% 4px,
           92.5% 0,
-          95% 2px,
+          95% 4px,
           97.5% 0,
-          100% 2px,
-          100% calc(100% - 2px),
+          100% 4px,
+          100% calc(100% - 4px),
           97.5% 100%,
-          95% calc(100% - 2px),
+          95% calc(100% - 4px),
           92.5% 100%,
-          90% calc(100% - 2px),
+          90% calc(100% - 4px),
           87.5% 100%,
-          85% calc(100% - 2px),
+          85% calc(100% - 4px),
           82.5% 100%,
-          80% calc(100% - 2px),
+          80% calc(100% - 4px),
           77.5% 100%,
-          75% calc(100% - 2px),
+          75% calc(100% - 4px),
           72.5% 100%,
           70% calc(100% - 2px),
           67.5% 100%,
-          65% calc(100% - 2px),
+          65% calc(100% - 4px),
           62.5% 100%,
-          60% calc(100% - 2px),
+          60% calc(100% - 4px),
           57.5% 100%,
-          55% calc(100% - 2px),
+          55% calc(100% - 4px),
           52.5% 100%,
-          50% calc(100% - 2px),
+          50% calc(100% - 4px),
           47.5% 100%,
-          45% calc(100% - 2px),
+          45% calc(100% - 4px),
           42.5% 100%,
-          40% calc(100% - 2px),
+          40% calc(100% - 4px),
           37.5% 100%,
-          35% calc(100% - 2px),
+          35% calc(100% - 4px),
           32.5% 100%,
-          30% calc(100% - 2px),
+          30% calc(100% - 4px),
           27.5% 100%,
-          25% calc(100% - 2px),
+          25% calc(100% - 4px),
           22.5% 100%,
           20% calc(100% - 2px),
           17.5% 100%,
-          15% calc(100% - 2px),
+          15% calc(100% - 4px),
           12.5% 100%,
-          10% calc(100% - 2px),
+          10% calc(100% - 4px),
           7.5% 100%,
-          5% calc(100% - 2px),
+          5% calc(100% - 4px),
           2.5% 100%,
-          0% calc(100% - 2px)
+          0% calc(100% - 4px)
         );
       }
       .receipt.dragging {
@@ -375,14 +377,15 @@
 
       async function initApp() {
         viewport = document.getElementById("viewport");
-        // 性能增强：增加 Supabase 库加载检查
+
+        // 修复 B：更健壮的初始化检查
         if (typeof window.supabase === "undefined") {
-          console.error("Supabase 库未加载，进入离线模式。");
+          alert("⚠️ 数据库连接超时，已切换至本地预览模式。");
           initCanvasPan();
           return;
         }
-        sb = window.supabase.createClient(SB_URL, SB_KEY);
 
+        sb = window.supabase.createClient(SB_URL, SB_KEY);
         document.getElementById("inputText").addEventListener("input", () => {
           playSfx(1000 + Math.random() * 200, "sine", 0.015, 0.05);
         });
@@ -398,7 +401,7 @@
             setTimeout(() => focusAllReceipts(true), 300);
           }
         } catch (e) {
-          console.warn("获取初始数据失败，请检查网络。");
+          console.warn("获取初始数据失败");
         }
 
         sb.channel("db-changes")
@@ -469,7 +472,7 @@
             await sb.from("notes").update(payload).eq("id", dbId);
           }
         } catch (e) {
-          console.error("同步至云端失败。");
+          console.error("保存失败");
         } finally {
           el.dataset.saving = "false";
         }
@@ -555,7 +558,8 @@
         };
         const move = (e) => {
           if (!isD) return;
-          if (e.cancelable) e.preventDefault(); // 性能增强：阻止移动端滚动干扰
+          // 修复 C：阻止反向拖动的阻滞感
+          if (e.cancelable) e.preventDefault();
           const t = e.type.includes("touch") ? e.touches[0] : e;
           el.style.left = ix + (t.clientX - sx) / scale + "px";
           el.style.top = iy + (t.clientY - sy) / scale + "px";
@@ -591,7 +595,7 @@
             el.style.left = Math.round(tx / grid) * grid + "px";
             el.style.top = Math.round(ty / grid) * grid + "px";
 
-            // 性能增强：异步同步至云端，确保 UI 吸附动画丝滑
+            // 修复 D：异步保存，确保吸附动画丝滑
             setTimeout(() => saveToCloud(el), 0);
             playSfx(400, "sine", 0.01, 0.05);
           }
@@ -610,7 +614,7 @@
         if (!text) return;
         playSfx(800, "sawtooth", 0.03, 0.4);
         const nid = `PGR-${Math.floor(Math.random() * 9000 + 1000)}`;
-        // 保留你的长日期格式
+        // 保留你的长日期逻辑
         const date = new Date()
           .toLocaleString("zh-CN", {
             year: "numeric",
@@ -774,7 +778,6 @@
       function resetCanvasToCenter() {
         focusAllReceipts(false);
       }
-
       function toggleColor() {
         currentColorIndex = (currentColorIndex + 1) % paperColors.length;
         document
