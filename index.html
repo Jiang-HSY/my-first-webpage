@@ -6,9 +6,13 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
-    <title>云便签 - 稳定同步版</title>
-    <script src="https://lf26-cdn-tos.bytecdntp.com/cdn/expire-1-M/supabase/2.39.7/supabase-js.js"></script>
-
+    <title>云便签 - 终极修复版</title>
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='40' height='46' viewBox='0 0 40 46' fill='none'><path d='M0 14C0 8.47715 4.47715 4 10 4H23.3431C24.404 4 25.4214 4.42143 26.1716 5.17157L34.8284 13.8284C35.5786 14.5786 36 15.596 36 16.6569V36C36 41.5228 31.5228 46 26 46H10C4.47715 46 0 41.5228 0 36V14Z' fill='%232B92FF'/><path d='M4 8C4 3.58172 7.58172 0 12 0H27.3431C28.404 0 29.4214 0.421427 30.1716 1.17157L38.8284 9.82843C39.5786 10.5786 40 11.596 40 12.6569V34C40 38.4183 36.4183 42 32 42H12C7.58172 42 4 38.4183 4 34V8Z' fill='%2352D45F'/><rect x='11' y='20' width='16' height='4' rx='2' fill='white'/><rect x='11' y='30' width='22' height='4' rx='2' fill='white'/></svg>"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
       :root {
         --pager-green: #a3d95b;
@@ -30,7 +34,6 @@
         font-family: "Space Mono", monospace;
         user-select: none;
         touch-action: none;
-        overscroll-behavior: none;
       }
       #viewport {
         position: absolute;
@@ -136,7 +139,6 @@
         cursor: pointer;
         pointer-events: auto;
       }
-
       .receipt {
         position: absolute;
         width: var(--note-width);
@@ -148,88 +150,88 @@
         pointer-events: auto;
         box-sizing: border-box;
         clip-path: polygon(
-          0% 2px,
+          0% 4px,
           2.5% 0,
-          5% 2px,
+          5% 4px,
           7.5% 0,
-          10% 2px,
+          10% 4px,
           12.5% 0,
-          15% 2px,
+          15% 4px,
           17.5% 0,
-          20% 2px,
+          20% 4px,
           22.5% 0,
-          25% 2px,
+          25% 4px,
           27.5% 0,
-          30% 2px,
+          30% 4px,
           32.5% 0,
-          35% 2px,
+          35% 4px,
           37.5% 0,
-          40% 2px,
+          40% 4px,
           42.5% 0,
-          45% 2px,
+          45% 4px,
           47.5% 0,
-          50% 2px,
+          50% 4px,
           52.5% 0,
-          55% 2px,
+          55% 4px,
           57.5% 0,
-          60% 2px,
+          60% 4px,
           62.5% 0,
-          65% 2px,
+          65% 4px,
           67.5% 0,
-          70% 2px,
+          70% 4px,
           72.5% 0,
-          75% 2px,
+          75% 4px,
           77.5% 0,
-          80% 2px,
+          80% 4px,
           82.5% 0,
-          85% 2px,
+          85% 4px,
           87.5% 0,
-          90% 2px,
+          90% 4px,
           92.5% 0,
-          95% 2px,
+          95% 4px,
           97.5% 0,
-          100% 2px,
-          100% calc(100% - 2px),
+          100% 4px,
+          100% calc(100% - 4px),
           97.5% 100%,
-          95% calc(100% - 2px),
+          95% calc(100% - 4px),
           92.5% 100%,
-          90% calc(100% - 2px),
+          90% calc(100% - 4px),
           87.5% 100%,
-          85% calc(100% - 2px),
+          85% calc(100% - 4px),
           82.5% 100%,
-          80% calc(100% - 2px),
+          80% calc(100% - 4px),
           77.5% 100%,
-          75% calc(100% - 2px),
+          75% calc(100% - 4px),
           72.5% 100%,
-          70% calc(100% - 2px),
+          70% calc(100% - 4px),
           67.5% 100%,
-          65% calc(100% - 2px),
+          65% calc(100% - 4px),
           62.5% 100%,
-          60% calc(100% - 2px),
+          60% calc(100% - 4px),
           57.5% 100%,
-          55% calc(100% - 2px),
+          55% calc(100% - 4px),
           52.5% 100%,
-          50% calc(100% - 2px),
+          50% calc(100% - 4px),
           47.5% 100%,
-          45% calc(100% - 2px),
+          45% calc(100% - 4px),
           42.5% 100%,
-          40% calc(100% - 2px),
+          40% calc(100% - 4px),
           37.5% 100%,
-          35% calc(100% - 2px),
+          35% calc(100% - 4px),
           32.5% 100%,
-          30% calc(100% - 2px),
+          30% calc(100% - 4px),
           27.5% 100%,
-          25% calc(100% - 2px),
+          25% calc(100% - 4px),
           22.5% 100%,
-          20% calc(100% - 2px),
+          20% calc(100% - 4px),
           17.5% 100%,
-          15% calc(100% - 2px),
+          15% calc(100% - 4px),
           12.5% 100%,
-          10% calc(100% - 2px),
+          10% calc(100% - 4px),
           7.5% 100%,
-          5% calc(100% - 2px),
+          5% calc(100% - 4px),
           2.5% 100%,
-          0% calc(100% - 2px)
+          0% calc(100% - 4px)
         );
       }
       .receipt.dragging {
@@ -296,8 +298,8 @@
       <div class="pager-container">
         <div class="pager-body">
           <div class="search-bar">
-            <span style="color: #7dff7d; margin-right: 5px">🔍</span
-            ><input
+            <span style="color: #7dff7d; margin-right: 5px">🔍</span>
+            <input
               type="text"
               id="searchInp"
               placeholder="SEARCH NOTES..."
@@ -348,56 +350,99 @@
         { bg: "#ffe0b2", p: "#ffe0b2" },
       ];
 
+      let audioCtx;
+      function initAudio() {
+        if (!audioCtx)
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      function playSfx(f, t = "sine", v = 0.02, d = 0.1) {
+        initAudio();
+        if (audioCtx.state === "suspended") audioCtx.resume();
+        const o = audioCtx.createOscillator(),
+          g = audioCtx.createGain();
+        o.type = t;
+        o.frequency.setValueAtTime(f, audioCtx.currentTime);
+        g.gain.setValueAtTime(v, audioCtx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + d);
+        o.connect(g);
+        g.connect(audioCtx.destination);
+        o.start();
+        o.stop(audioCtx.currentTime + d);
+      }
+
       async function initApp() {
         viewport = document.getElementById("viewport");
+        sb = window.supabase.createClient(SB_URL, SB_KEY);
 
-        // 实时检查库是否加载
-        if (typeof window.supabase === "undefined") {
-          alert("⚠️ 数据库脚本加载失败！请尝试硬刷新(Ctrl+F5)或检查网络。");
-          initCanvasPan();
-          return;
+        document.getElementById("inputText").addEventListener("input", () => {
+          playSfx(1000 + Math.random() * 200, "sine", 0.015, 0.05);
+        });
+
+        const { data } = await sb.from("notes").select("*");
+        if (data && data.length > 0) {
+          // 修复关键：初始化时找到数据库中最大的 z_index
+          data.forEach((item) => {
+            renderReceipt(item.id, item, true);
+            if (item.z_index)
+              zIndexCounter = Math.max(zIndexCounter, parseInt(item.z_index));
+          });
+          setTimeout(() => focusAllReceipts(true), 300);
         }
 
-        try {
-          sb = window.supabase.createClient(SB_URL, SB_KEY);
-          const { data, error } = await sb.from("notes").select("*");
-          if (error) throw error;
-          if (data) {
-            data.forEach((item) => {
-              renderReceipt(item.id, item, true);
-              if (item.z_index)
-                zIndexCounter = Math.max(zIndexCounter, parseInt(item.z_index));
-            });
-            setTimeout(() => focusAllReceipts(true), 300);
-          }
-
-          // 实时同步订阅
-          sb.channel("db-changes")
-            .on(
-              "postgres_changes",
-              { event: "*", schema: "public", table: "notes" },
-              (p) => {
-                if (p.eventType === "INSERT")
-                  renderReceipt(p.new.id, p.new, true);
-                if (p.eventType === "DELETE")
-                  document
-                    .querySelector(`[data-db-id="${p.old.id}"]`)
-                    ?.remove();
+        sb.channel("db-changes")
+          .on(
+            "postgres_changes",
+            { event: "*", schema: "public", table: "notes" },
+            (payload) => {
+              if (payload.eventType === "INSERT") {
+                if (
+                  !document.querySelector(
+                    `[data-note-id="${payload.new.note_id}"]`
+                  )
+                ) {
+                  renderReceipt(payload.new.id, payload.new, true);
+                  playSfx(1000, "sine", 0.03, 0.4);
+                } else {
+                  const local = document.querySelector(
+                    `[data-note-id="${payload.new.note_id}"]`
+                  );
+                  if (local) local.dataset.dbId = payload.new.id;
+                }
+              } else if (payload.eventType === "UPDATE") {
+                const el = document.querySelector(
+                  `[data-db-id="${payload.new.id}"]`
+                );
+                if (el && el.dataset.saving !== "true") {
+                  el.style.transition = "all 0.5s ease";
+                  el.style.left = payload.new.left_pos;
+                  el.style.top = payload.new.top_pos;
+                  el.style.zIndex = payload.new.z_index;
+                  el.querySelector(".receipt-content").innerText =
+                    payload.new.content;
+                  setTimeout(() => (el.style.transition = "none"), 500);
+                }
+              } else if (payload.eventType === "DELETE") {
+                document
+                  .querySelector(`[data-db-id="${payload.old.id}"]`)
+                  ?.remove();
+                playSfx(200, "sawtooth", 0.02, 0.2);
               }
-            )
-            .subscribe();
-        } catch (e) {
-          console.warn("同步受限:", e.message);
-        }
+            }
+          )
+          .subscribe();
+
         initCanvasPan();
       }
 
       async function saveToCloud(el) {
         if (!sb || el.dataset.saving === "true") return;
+        const content = el.querySelector(".receipt-content").innerText.trim();
+        if (!content) return;
         el.dataset.saving = "true";
+        const dbId = el.dataset.dbId;
         const payload = {
           note_id: el.dataset.noteId,
-          content: el.querySelector(".receipt-content").innerText.trim(),
+          content: content,
           color: el.style.getPropertyValue("--this-paper-color"),
           left_pos: el.style.left,
           top_pos: el.style.top,
@@ -405,63 +450,151 @@
           date_str: el.querySelector(".footer-date").innerText,
         };
         try {
-          const dbId = el.dataset.dbId;
-          if (!dbId || dbId === "null") {
+          if (!dbId || dbId === "null" || dbId === "undefined") {
             const { data } = await sb.from("notes").insert([payload]).select();
             if (data) el.dataset.dbId = data[0].id;
           } else {
             await sb.from("notes").update(payload).eq("id", dbId);
           }
-        } catch (e) {
-          console.error("保存失败");
         } finally {
           el.dataset.saving = "false";
         }
       }
 
       function renderReceipt(dbId, data, isInit = false) {
-        if (document.querySelector(`[data-note-id="${data.note_id}"]`)) return;
-        const r = document.createElement("div");
-        r.className = "receipt";
-        r.dataset.dbId = dbId;
-        r.dataset.noteId = data.note_id;
-        r.style.setProperty("--this-paper-color", data.color || "#ffffff");
-        r.style.left = data.left_pos;
-        r.style.top = data.top_pos;
-        r.style.zIndex = data.z_index || 100;
+        if (dbId && document.querySelector(`[data-db-id="${dbId}"]`)) return;
+        if (
+          data.note_id &&
+          document.querySelector(`[data-note-id="${data.note_id}"]`)
+        )
+          return;
 
-        r.innerHTML = `
-                <div class="receipt-header"><span>${
-                  data.note_id
-                }</span><span class="close-btn" onclick="removeReceipt(this)">×</span></div>
-                <div class="receipt-content" contenteditable="true" spellcheck="false">${
-                  isInit ? data.content : ""
-                }</div>
-                <div style="display:flex;justify-content:space-between;font-size:8px;color:rgba(0,0,0,0.2);border-top:1px dashed rgba(0,0,0,0.08);padding-top:10px;pointer-events:none;">
-                    <span>ID:${data.note_id}</span><span class="footer-date">${
-          data.date_str
-        }</span>
-                </div>`;
+        const receipt = document.createElement("div");
+        receipt.className = "receipt";
+        receipt.dataset.dbId = dbId;
+        receipt.dataset.noteId = data.note_id;
+        receipt.style.setProperty(
+          "--this-paper-color",
+          data.color || "#ffffff"
+        );
+        receipt.style.left = data.left_pos;
+        receipt.style.top = data.top_pos;
+        receipt.style.zIndex = data.z_index || 100;
 
-        viewport.appendChild(r);
-        const contentEl = r.querySelector(".receipt-content");
-        if (!isInit) {
-          r.style.transition = "top 0.8s ease-out";
-          r.style.top = data.target_y;
-          typeWriter(contentEl, data.content, () => {
-            r.style.transition = "none";
-            saveToCloud(r);
-          });
+        receipt.innerHTML = `
+            <div class="receipt-header"><span>${data.note_id}</span><span class="close-btn" onclick="removeReceipt(this)">×</span></div>
+            <div class="receipt-content" contenteditable="true" spellcheck="false"></div>
+            <div style="display:flex; justify-content:space-between; font-size:8px; color:rgba(0,0,0,0.2); border-top:1px dashed rgba(0,0,0,0.08); padding-top:10px; pointer-events:none;">
+                <span>ID:${data.note_id}</span><span class="footer-date">${data.date_str}</span>
+            </div>`;
+
+        viewport.appendChild(receipt);
+        const contentEl = receipt.querySelector(".receipt-content");
+
+        if (isInit) {
+          contentEl.innerText = data.content;
+        } else {
+          setTimeout(() => {
+            receipt.style.transition =
+              "top 0.8s cubic-bezier(0.22, 1, 0.36, 1)";
+            receipt.style.top = data.target_y;
+            setTimeout(() => {
+              receipt.style.transition = "none";
+              saveToCloud(receipt);
+            }, 810);
+          }, 50);
+          typeWriter(contentEl, data.content);
         }
-        contentEl.addEventListener("blur", () => saveToCloud(r));
-        makeDraggable(r);
+
+        receipt.addEventListener("dblclick", (e) => {
+          if (e.target !== contentEl) focusSingleReceipt(receipt);
+        });
+        contentEl.addEventListener("blur", () => saveToCloud(receipt));
+        contentEl.addEventListener("input", () =>
+          playSfx(1200, "sine", 0.005, 0.02)
+        );
+        makeDraggable(receipt);
+      }
+
+      function makeDraggable(el) {
+        let isD = false,
+          sx,
+          sy,
+          ix,
+          iy;
+        const start = (e) => {
+          if (
+            e.target.classList.contains("close-btn") ||
+            e.target.contentEditable === "true"
+          )
+            return;
+          e.stopPropagation();
+          isD = true;
+          el.classList.add("dragging");
+          // 每次点击都会让当前便签 zIndex 增加，保证在最上
+          el.style.zIndex = ++zIndexCounter;
+          const t = e.type.includes("touch") ? e.touches[0] : e;
+          sx = t.clientX;
+          sy = t.clientY;
+          ix = parseFloat(el.style.left);
+          iy = parseFloat(el.style.top);
+          playSfx(600, "sine", 0.01, 0.05);
+        };
+        const move = (e) => {
+          if (!isD) return;
+          const t = e.type.includes("touch") ? e.touches[0] : e;
+          el.style.left = ix + (t.clientX - sx) / scale + "px";
+          el.style.top = iy + (t.clientY - sy) / scale + "px";
+        };
+        const end = () => {
+          if (isD) {
+            isD = false;
+            el.classList.remove("dragging");
+            let tx = parseFloat(el.style.left),
+              ty = parseFloat(el.style.top);
+            const grid = 20,
+              snap = 30;
+            const others = document.querySelectorAll(
+              `.receipt:not([data-note-id="${el.dataset.noteId}"])`
+            );
+            others.forEach((o) => {
+              const ox = parseFloat(o.style.left),
+                oy = parseFloat(o.style.top);
+              const ow = o.offsetWidth,
+                oh = o.offsetHeight;
+              if (Math.abs(ty - oy) < snap) {
+                if (Math.abs(tx - (ox + ow)) < snap) tx = ox + ow;
+                if (Math.abs(tx + 320 - ox) < snap) tx = ox - 320;
+                ty = oy;
+              }
+              if (Math.abs(tx - ox) < snap) {
+                if (Math.abs(ty - (oy + oh)) < snap) ty = oy + oh;
+                if (Math.abs(ty + el.offsetHeight - oy) < snap)
+                  ty = oy - el.offsetHeight;
+                tx = ox;
+              }
+            });
+            el.style.left = Math.round(tx / grid) * grid + "px";
+            el.style.top = Math.round(ty / grid) * grid + "px";
+            saveToCloud(el);
+            playSfx(400, "sine", 0.01, 0.05);
+          }
+        };
+        el.addEventListener("mousedown", start);
+        el.addEventListener("touchstart", start, { passive: false });
+        window.addEventListener("mousemove", move);
+        window.addEventListener("touchmove", move, { passive: false });
+        window.addEventListener("mouseup", end);
+        window.addEventListener("touchend", end);
       }
 
       function printReceipt() {
         const input = document.getElementById("inputText");
         const text = input.value.trim();
         if (!text) return;
+        playSfx(800, "sawtooth", 0.03, 0.4);
         const nid = `PGR-${Math.floor(Math.random() * 9000 + 1000)}`;
+        // 在 printReceipt 函数内修改这一行
         const date = new Date()
           .toLocaleString("zh-CN", {
             year: "numeric",
@@ -473,9 +606,12 @@
             hour12: false,
           })
           .replace(/\//g, "/");
+
         const x = (window.innerWidth / 2 - offsetX) / scale - 160;
         const startY = (window.innerHeight - 180 - offsetY) / scale;
         const targetY = (window.innerHeight / 2 - 100 - offsetY) / scale;
+
+        // 打印新便签时 zIndex 递增，确保最上层
         renderReceipt(null, {
           note_id: nid,
           content: text,
@@ -489,57 +625,49 @@
         input.value = "";
       }
 
-      function makeDraggable(el) {
-        let isD = false,
-          sx,
-          sy,
-          ix,
-          iy;
-        const start = (e) => {
-          if (
-            e.target.contentEditable === "true" ||
-            e.target.classList.contains("close-btn")
-          )
-            return;
-          isD = true;
-          el.classList.add("dragging");
-          el.style.zIndex = ++zIndexCounter;
-          const t = e.type.includes("touch") ? e.touches[0] : e;
-          sx = t.clientX;
-          sy = t.clientY;
-          ix = parseFloat(el.style.left);
-          iy = parseFloat(el.style.top);
-          e.stopPropagation();
-        };
-        const move = (e) => {
-          if (!isD) return;
-          if (e.cancelable) e.preventDefault();
-          const t = e.type.includes("touch") ? e.touches[0] : e;
-          el.style.left = ix + (t.clientX - sx) / scale + "px";
-          el.style.top = iy + (t.clientY - sy) / scale + "px";
-        };
-        const end = () => {
-          if (isD) {
-            isD = false;
-            el.classList.remove("dragging");
-            saveToCloud(el);
-          }
-        };
-        el.addEventListener("mousedown", start);
-        el.addEventListener("touchstart", start, { passive: false });
-        window.addEventListener("mousemove", move);
-        window.addEventListener("touchmove", move, { passive: false });
-        window.addEventListener("mouseup", end);
-        window.addEventListener("touchend", end);
+      function handleSearch(val) {
+        const q = val.toLowerCase().trim();
+        document.querySelectorAll(".receipt").forEach((n) => {
+          const t = n.querySelector(".receipt-content").innerText.toLowerCase();
+          n.classList.toggle("hidden-note", q !== "" && !t.includes(q));
+        });
+      }
+
+      function clearAllInputs() {
+        document.getElementById("inputText").value = "";
+        const s = document.getElementById("searchInp");
+        s.value = "";
+        handleSearch("");
+        playSfx(200, "sawtooth", 0.03, 0.1);
+      }
+
+      function focusSingleReceipt(el) {
+        const x = parseFloat(el.style.left) + 160;
+        const y = parseFloat(el.style.top) + el.offsetHeight / 2;
+        scale = 1;
+        offsetX = window.innerWidth / 2 - x * scale;
+        offsetY = window.innerHeight / 2 - y * scale;
+        viewport.style.transition = "all 0.5s ease";
+        applyTransform();
+        setTimeout(() => (viewport.style.transition = "none"), 500);
       }
 
       function typeWriter(el, text, cb) {
         let i = 0;
+        const cur = document.createElement("span");
+        cur.className = "cursor";
+        el.innerHTML = "";
+        el.appendChild(cur);
         function type() {
           if (i < text.length) {
-            el.innerText += text[i++];
+            el.insertBefore(document.createTextNode(text[i]), cur);
+            i++;
+            playSfx(800 + Math.random() * 200, "sine", 0.01, 0.02);
             setTimeout(type, 30);
-          } else if (cb) cb();
+          } else {
+            cur.remove();
+            if (cb) cb();
+          }
         }
         type();
       }
@@ -549,20 +677,18 @@
           sx,
           sy;
         const start = (e) => {
-          if (e.target === viewport || e.target === document.body) {
-            isP = true;
-            const t = e.type.includes("touch") ? e.touches[0] : e;
-            sx = t.clientX - offsetX;
-            sy = t.clientY - offsetY;
-          }
+          if (e.target !== viewport && e.target !== document.body) return;
+          isP = true;
+          const t = e.type.includes("touch") ? e.touches[0] : e;
+          sx = t.clientX - offsetX;
+          sy = t.clientY - offsetY;
         };
         const move = (e) => {
-          if (isP) {
-            const t = e.type.includes("touch") ? e.touches[0] : e;
-            offsetX = t.clientX - sx;
-            offsetY = t.clientY - sy;
-            applyTransform();
-          }
+          if (!isP) return;
+          const t = e.type.includes("touch") ? e.touches[0] : e;
+          offsetX = t.clientX - sx;
+          offsetY = t.clientY - sy;
+          applyTransform();
         };
         window.addEventListener("mousedown", start);
         window.addEventListener("mousemove", move);
@@ -576,7 +702,8 @@
         const el = btn.closest(".receipt");
         const dbId = el.dataset.dbId;
         el.remove();
-        if (sb && dbId && dbId !== "null")
+        playSfx(150, "sawtooth", 0.03, 0.1);
+        if (dbId && dbId !== "null")
           await sb.from("notes").delete().eq("id", dbId);
       }
 
@@ -586,16 +713,20 @@
       function changeZoom(d) {
         scale = Math.min(Math.max(0.1, scale + d), 3);
         applyTransform();
+        playSfx(1500, "sine", 0.005, 0.05);
       }
-      function focusAllReceipts(s) {
-        const items = document.querySelectorAll(".receipt");
+
+      // --- 居中逻辑优化 ---
+      function focusAllReceipts(shouldScale = true) {
+        const items = document.querySelectorAll(".receipt:not(.hidden-note)");
         if (!items.length) {
+          scale = 1;
           offsetX = 0;
           offsetY = 0;
-          scale = 1;
           applyTransform();
           return;
         }
+
         let minX = Infinity,
           maxX = -Infinity,
           minY = Infinity,
@@ -606,23 +737,35 @@
           minX = Math.min(minX, x);
           maxX = Math.max(maxX, x + 320);
           minY = Math.min(minY, y);
-          maxY = Math.max(maxY, y + 150);
+          maxY = Math.max(maxY, y + el.offsetHeight);
         });
-        if (s)
+
+        const centerX = (minX + maxX) / 2;
+        const centerY = (minY + maxY) / 2;
+
+        if (shouldScale) {
           scale = Math.min(
             window.innerWidth / (maxX - minX + 100),
             (window.innerHeight - 300) / (maxY - minY + 100),
             1
           );
-        offsetX = window.innerWidth / 2 - ((minX + maxX) / 2) * scale;
-        offsetY = window.innerHeight / 2 - ((minY + maxY) / 2) * scale;
-        viewport.style.transition = "all 0.5s";
+        } else {
+          scale = 1; // ↺ 按钮强制 100% 比例
+        }
+
+        offsetX = window.innerWidth / 2 - centerX * scale;
+        offsetY = window.innerHeight / 2 - centerY * scale;
+
+        viewport.style.transition = "all 0.6s ease";
         applyTransform();
-        setTimeout(() => (viewport.style.transition = "none"), 500);
+        setTimeout(() => (viewport.style.transition = "none"), 600);
+        playSfx(700, "sine", 0.01, 0.3);
       }
+
       function resetCanvasToCenter() {
         focusAllReceipts(false);
-      }
+      } // ↺ 重置按钮：居中但不缩放
+
       function toggleColor() {
         currentColorIndex = (currentColorIndex + 1) % paperColors.length;
         document
@@ -631,26 +774,13 @@
             "--paper-preview",
             paperColors[currentColorIndex].p
           );
-      }
-      function handleSearch(v) {
-        const q = v.toLowerCase();
-        document
-          .querySelectorAll(".receipt")
-          .forEach((n) =>
-            n.classList.toggle(
-              "hidden-note",
-              q && !n.innerText.toLowerCase().includes(q)
-            )
-          );
-      }
-      function clearAllInputs() {
-        document.getElementById("inputText").value = "";
-        handleSearch("");
+        playSfx(1000, "sine", 0.02, 0.1);
       }
 
       window.onload = () => {
         const code = prompt("请输入暗号：");
         if (code === "123456") {
+          initAudio();
           initApp();
         } else {
           alert("暗号错误");
